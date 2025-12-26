@@ -1,0 +1,5 @@
+{
+  "name": "Ludo Master Pro",
+  "description": "A production-grade Ludo game engine featuring Local Multiplayer, Smart AI opponents using heuristic algorithms, and a Gemini-powered Game Assistant for strategic advice. Built with React, TypeScript, and Tailwind CSS.",
+  "requestFramePermissions": []
+}
