@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GameState, Player, PlayerColor, Token, GameConfig, PlayerType } from './types';
 import { COLOR_MAP } from './constants';
@@ -19,8 +20,8 @@ const App: React.FC = () => {
     players: [
       { color: PlayerColor.RED, type: PlayerType.HUMAN, name: 'Player 1' },
       { color: PlayerColor.GREEN, type: PlayerType.COMPUTER, name: 'CPU 1' },
-      { color: PlayerColor.BLUE, type: PlayerType.COMPUTER, name: 'CPU 2' }, // Default hidden
-      { color: PlayerColor.YELLOW, type: PlayerType.COMPUTER, name: 'CPU 3' }, // Default hidden
+      { color: PlayerColor.BLUE, type: PlayerType.COMPUTER, name: 'CPU 2' },
+      { color: PlayerColor.YELLOW, type: PlayerType.COMPUTER, name: 'CPU 3' },
     ],
     startingColor: PlayerColor.RED
   });
@@ -42,7 +43,7 @@ const App: React.FC = () => {
   const [assistantVisible, setAssistantVisible] = useState(false);
 
   const playSound = (type: 'roll' | 'move' | 'kill' | 'win') => {
-    // Stub
+    // Sound implementation placeholder
   };
 
   // --- Setup Handlers ---
@@ -53,10 +54,7 @@ const App: React.FC = () => {
   };
 
   const startGame = () => {
-    // Filter active players based on count
     const activeConfigs = config.players.slice(0, config.playerCount);
-    
-    // Create Players
     const newPlayers: Player[] = activeConfigs.map((c, i) => ({
       id: c.color,
       name: c.name,
@@ -66,7 +64,6 @@ const App: React.FC = () => {
       hasFinished: false,
     }));
 
-    // Find starting index
     let startIndex = newPlayers.findIndex(p => p.color === config.startingColor);
     if (startIndex === -1) startIndex = 0;
 
@@ -88,7 +85,6 @@ const App: React.FC = () => {
   const nextTurn = useCallback(() => {
     setGameState(prev => {
       let nextIndex = (prev.currentPlayerIndex + 1) % prev.players.length;
-      
       let attempts = 0;
       while (prev.players[nextIndex].hasFinished && attempts < 4) {
         nextIndex = (nextIndex + 1) % prev.players.length;
@@ -102,7 +98,7 @@ const App: React.FC = () => {
         diceValue: null,
         waitingForMove: false,
         consecutiveSixes: 0,
-        log: [] // We aren't using log, but keeping structure clean
+        log: []
       };
     });
   }, []);
@@ -115,7 +111,6 @@ const App: React.FC = () => {
 
     setTimeout(() => {
       const roll = GameLogic.rollDice();
-      
       setGameState(prev => {
         const currentPlayer = prev.players[prev.currentPlayerIndex];
         const canMove = GameLogic.hasValidMoves(currentPlayer, roll);
@@ -137,10 +132,8 @@ const App: React.FC = () => {
           lastDiceRollTime: Date.now()
         };
       });
-
     }, 600);
   }, [gameState.isDiceRolling, gameState.waitingForMove, gameState.winners.length, gameState.players.length]);
-
 
   const handleMoveToken = useCallback((token: Token) => {
     if (!gameState.waitingForMove || !gameState.diceValue) return;
@@ -157,7 +150,6 @@ const App: React.FC = () => {
       const tIndex = player.tokens.findIndex(t => t.id === token.id);
       
       const movedToken = { ...player.tokens[tIndex] };
-      
       if (movedToken.stepCount === -1) {
         movedToken.stepCount = 0;
       } else {
@@ -197,11 +189,8 @@ const App: React.FC = () => {
         consecutiveSixes: dice === 6 ? prev.consecutiveSixes + 1 : 0
       };
     });
-    
     setLastMovedTokenId(token.id);
-
   }, [gameState.waitingForMove, gameState.diceValue, gameState.players, gameState.currentPlayerIndex]);
-
 
   useEffect(() => {
     if (!gameState.waitingForMove && gameState.diceValue !== null && !gameState.isDiceRolling) {
@@ -215,8 +204,6 @@ const App: React.FC = () => {
     }
   }, [gameState.waitingForMove, gameState.diceValue, gameState.isDiceRolling, nextTurn, gameState.consecutiveSixes, gameState.players, gameState.currentPlayerIndex]);
 
-
-  // --- AI Logic ---
   useEffect(() => {
     if (isSetupMode || gameState.winners.length >= gameState.players.length - 1) return;
 
@@ -237,12 +224,8 @@ const App: React.FC = () => {
        }, 1500);
        return () => clearTimeout(timer);
     }
-
   }, [gameState, isSetupMode, handleDiceRoll, handleMoveToken]);
 
-
-  // --- RENDER ---
-  
   if (isSetupMode) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#2c1e14] p-4 relative overflow-hidden">
@@ -251,9 +234,7 @@ const App: React.FC = () => {
           <h1 className="text-4xl font-serif font-extrabold text-[#e6dfc8] text-center mb-8 uppercase tracking-widest drop-shadow-md">
             Game Setup
           </h1>
-
           <div className="space-y-6">
-             {/* Player Count */}
              <div className="flex justify-center space-x-4 mb-8">
                {[2, 3, 4].map(count => (
                  <button 
@@ -265,8 +246,6 @@ const App: React.FC = () => {
                  </button>
                ))}
              </div>
-
-             {/* Player Details */}
              <div className="space-y-3">
                {Array.from({ length: config.playerCount }).map((_, i) => (
                  <div key={i} className="flex items-center space-x-4 bg-[#2c1e14] p-3 rounded-lg border border-[#5c4033]">
@@ -285,8 +264,6 @@ const App: React.FC = () => {
                       <option value={PlayerType.HUMAN}>Human</option>
                       <option value={PlayerType.COMPUTER}>CPU</option>
                     </select>
-                    
-                    {/* Color Selection (Simplified to cycle for demo, or fixed) */}
                     <select 
                        value={config.players[i].color}
                        onChange={(e) => updatePlayerConfig(i, 'color', e.target.value)}
@@ -301,8 +278,6 @@ const App: React.FC = () => {
                  </div>
                ))}
              </div>
-
-             {/* Starting Player */}
              <div className="flex items-center justify-between bg-[#2c1e14] p-3 rounded-lg border border-[#5c4033] mt-4">
                 <span className="text-[#a89078] font-bold text-sm">Who goes first?</span>
                 <select 
@@ -315,7 +290,6 @@ const App: React.FC = () => {
                   ))}
                 </select>
              </div>
-
              <button 
                onClick={startGame}
                className="w-full bg-[#5c4033] hover:bg-[#6d4c3d] text-[#e6dfc8] font-bold py-4 rounded-xl mt-8 shadow-lg border border-[#8b5a2b] flex items-center justify-center space-x-2 transition-transform hover:scale-[1.02]"
@@ -331,11 +305,6 @@ const App: React.FC = () => {
 
   const currentPlayer = gameState.players[gameState.currentPlayerIndex];
 
-  // Dice Positioning Logic
-  // We want the dice to appear "in the area" of the current player.
-  // We can position it absolutely over the board.
-  // Board is relative.
-  // Red (Top Left), Green (Top Right), Blue (Bottom Right), Yellow (Bottom Left).
   const getDicePositionClass = (color: PlayerColor) => {
      switch (color) {
        case PlayerColor.RED: return 'top-[15%] left-[15%]';
@@ -347,20 +316,20 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#2c1e14] flex flex-col items-center justify-start p-4 md:p-8 relative overflow-hidden">
+    <div className="h-screen w-full bg-[#2c1e14] flex flex-col items-center justify-center p-4 md:p-8 relative overflow-hidden">
       <div className="absolute inset-0 opacity-40 bg-[url('https://www.transparenttextures.com/patterns/wood-pattern.png')] pointer-events-none"></div>
 
-      {/* Header / Player Bar */}
-      <div className="w-full max-w-2xl flex items-center justify-between mb-8 z-10 bg-[#3d2b1f]/90 p-2 rounded-xl border border-[#5c4033] shadow-lg backdrop-blur-sm">
-         <div className="flex-1 text-[#e6dfc8] font-serif font-bold text-lg pl-4">Royal Ludo</div>
-         <div className="flex space-x-2">
+      {/* Header / Player Bar - Floating Top */}
+      <div className="absolute top-4 w-full max-w-2xl flex items-center justify-between z-30 bg-[#3d2b1f]/90 p-2 rounded-xl border border-[#5c4033] shadow-lg backdrop-blur-sm">
+         <div className="flex-1 text-[#e6dfc8] font-serif font-bold text-lg pl-4 hidden sm:block">Royal Ludo</div>
+         <div className="flex-1 flex justify-center space-x-2">
            {gameState.players.map((p, i) => (
              <div key={p.id} className={`
                 flex items-center space-x-2 px-3 py-1.5 rounded-lg border transition-all
                 ${gameState.currentPlayerIndex === i ? 'bg-[#5c4033] border-[#a89078] scale-105 shadow-md' : 'bg-transparent border-transparent opacity-70'}
              `}>
                 <div className={`w-3 h-3 rounded-full ${COLOR_MAP[p.color].bg} shadow-sm`}></div>
-                <span className={`text-xs font-bold ${gameState.currentPlayerIndex === i ? 'text-white' : 'text-[#a89078]'}`}>
+                <span className={`text-[10px] sm:text-xs font-bold ${gameState.currentPlayerIndex === i ? 'text-white' : 'text-[#a89078]'}`}>
                   {p.name}
                 </span>
              </div>
@@ -371,8 +340,8 @@ const App: React.FC = () => {
          </button>
       </div>
 
-      {/* Game Area */}
-      <div className="relative z-10 w-full max-w-[600px]">
+      {/* Main Centered Game Area */}
+      <div className="relative z-10 w-full max-w-[min(90vw,600px)] aspect-square">
         <LudoBoard 
           players={gameState.players}
           currentPlayerId={currentPlayer.id}
@@ -381,7 +350,6 @@ const App: React.FC = () => {
           onTokenClick={handleMoveToken}
           lastMovedTokenId={lastMovedTokenId}
         >
-          {/* Floating Contextual Dice */}
           <div className={`absolute ${getDicePositionClass(currentPlayer.color)} z-40 transition-all duration-500 ease-in-out`}>
              <Dice 
                value={gameState.diceValue}
@@ -398,10 +366,10 @@ const App: React.FC = () => {
           </div>
         </LudoBoard>
 
-        {/* Oracle Button (Fixed bottom right of board area usually, or floating) */}
+        {/* Oracle Button */}
         <button 
            onClick={() => setAssistantVisible(true)}
-           className="absolute -bottom-16 right-0 flex items-center space-x-2 bg-[#3d2b1f] border border-[#5c4033] px-4 py-2 rounded-full text-[#f2c94c] hover:bg-[#4d3b2f] transition shadow-lg"
+           className="absolute -bottom-14 right-0 flex items-center space-x-2 bg-[#3d2b1f] border border-[#5c4033] px-4 py-2 rounded-full text-[#f2c94c] hover:bg-[#4d3b2f] transition shadow-lg"
         >
            <Bot size={20} />
            <span className="font-bold text-sm">Oracle</span>
@@ -429,13 +397,11 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* Floating AI Assistant */}
       <GameAssistant 
         gameState={gameState} 
         visible={assistantVisible} 
         onClose={() => setAssistantVisible(false)} 
       />
-
     </div>
   );
 };

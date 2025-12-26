@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { GameState } from '../types';
 import { GoogleGenAI } from '@google/genai';
@@ -20,12 +21,11 @@ const GameAssistant: React.FC<GameAssistantProps> = ({ gameState, visible, onClo
     }
     
     setLoading(true);
-    setResponse(""); // Clear previous
+    setResponse("");
 
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       
-      // Simplify state for the prompt to save tokens and reduce complexity
       const simplifiedState = {
         currentPlayer: gameState.players[gameState.currentPlayerIndex].color,
         dice: gameState.diceValue,
@@ -46,7 +46,7 @@ const GameAssistant: React.FC<GameAssistantProps> = ({ gameState, visible, onClo
       `;
 
       const result = await ai.models.generateContent({
-        model: 'gemini-2.5-flash-latest',
+        model: 'gemini-3-flash-preview',
         contents: prompt,
       });
 
