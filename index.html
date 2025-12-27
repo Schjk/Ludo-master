@@ -1,31 +1,124 @@
+
 <!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
-    <title>Ludo Master Pro</title>
+    <title>Ludo Royal Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&display=swap" rel="stylesheet">
     <style>
-      /* Custom scrollbar for chat */
-      ::-webkit-scrollbar {
-        width: 6px;
+      ::-webkit-scrollbar { width: 6px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: #d4af37; border-radius: 3px; }
+      
+      body { 
+        overscroll-behavior-y: contain; 
+        background-color: #0c0604; 
+        font-family: 'Playfair Display', serif;
       }
-      ::-webkit-scrollbar-track {
-        background: transparent;
+
+      .font-royal { font-family: 'Cinzel', serif; }
+
+      /* Royal Golden Gradients */
+      .bg-gold-gradient {
+        background: linear-gradient(135deg, #bf953f 0%, #fcf6ba 25%, #b38728 50%, #fbf5b7 75%, #aa771c 100%);
       }
-      ::-webkit-scrollbar-thumb {
-        background: #cbd5e1;
-        border-radius: 3px;
+      .text-gold-gradient {
+        background: linear-gradient(to bottom, #fcf6ba 0%, #bf953f 50%, #aa771c 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
       }
-      .perspective-dice {
-        perspective: 600px;
+      .border-gold {
+        border-color: #d4af37;
       }
-      .rotate-x-180 {
-        transform: rotateX(180deg);
+
+      /* Ornamental Filigree Border Effect */
+      .ornate-border {
+        position: relative;
+        border: 4px solid #d4af37;
+        box-shadow: 0 0 15px rgba(212, 175, 55, 0.4), inset 0 0 15px rgba(212, 175, 55, 0.4);
       }
-      /* Prevent pull-to-refresh on mobile */
-      body {
-        overscroll-behavior-y: contain;
+      .ornate-border::before, .ornate-border::after {
+        content: '';
+        position: absolute;
+        width: 30px;
+        height: 30px;
+        border: 4px solid #fcf6ba;
+        z-index: 5;
+      }
+      .ornate-border::before { top: -8px; left: -8px; border-right: none; border-bottom: none; border-radius: 8px 0 0 0; }
+      .ornate-border::after { bottom: -8px; right: -8px; border-left: none; border-top: none; border-radius: 0 0 8px 0; }
+
+      /* 3D Dice Styles */
+      .dice-scene { width: 64px; height: 64px; perspective: 400px; }
+      .dice-cube {
+        width: 100%; height: 100%; position: relative;
+        transform-style: preserve-3d;
+        transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      }
+      .dice-face {
+        position: absolute; width: 64px; height: 64px;
+        background: radial-gradient(circle, #fffef0 0%, #e6dfc8 100%);
+        border: 2px solid #5c4033; border-radius: 12px;
+        display: flex; flex-wrap: wrap; padding: 10px; justify-content: space-between;
+        box-shadow: inset 0 0 10px rgba(0,0,0,0.1);
+      }
+      .dot { width: 12px; height: 12px; background: #2c1e14; border-radius: 50%; box-shadow: inset 0 2px 2px rgba(255,255,255,0.4); }
+      
+      .front  { transform: rotateY(  0deg) translateZ(32px); }
+      .back   { transform: rotateY(180deg) translateZ(32px); }
+      .right  { transform: rotateY( 90deg) translateZ(32px); }
+      .left   { transform: rotateY(-90deg) translateZ(32px); }
+      .top    { transform: rotateX( 90deg) translateZ(32px); }
+      .bottom { transform: rotateX(-90deg) translateZ(32px); }
+
+      /* Pawn Hop Animation */
+      @keyframes pawn-hop {
+        0%, 100% { transform: translateY(0) scale(1); }
+        50% { transform: translateY(-24px) scale(1.1); }
+      }
+      .animate-pawn-hop { animation: pawn-hop 0.25s ease-in-out infinite; }
+      
+      @keyframes shadow-shrink {
+        0%, 100% { transform: scale(1); opacity: 0.3; }
+        50% { transform: scale(0.6); opacity: 0.1; }
+      }
+      .animate-shadow-shrink { animation: shadow-shrink 0.25s ease-in-out infinite; }
+
+      .pawn-transition { transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); }
+      
+      .bounce-in { animation: bounceIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55); }
+      @keyframes bounceIn {
+        from { opacity: 0; transform: scale(0.3); }
+        to { opacity: 1; transform: scale(1); }
+      }
+
+      /* Glow Effects */
+      .drop-shadow-glow {
+        filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.6));
+      }
+
+      /* Custom animations for buttons */
+      @keyframes shine {
+        0% { left: -100%; }
+        20% { left: 100%; }
+        100% { left: 100%; }
+      }
+      .shine-effect {
+        position: relative;
+        overflow: hidden;
+      }
+      .shine-effect::after {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -100%;
+        width: 50%;
+        height: 200%;
+        background: rgba(255, 255, 255, 0.3);
+        transform: rotate(30deg);
+        animation: shine 4s infinite;
       }
     </style>
   <script type="importmap">
@@ -40,7 +133,7 @@
 }
 </script>
 </head>
-  <body class="bg-slate-900 text-white antialiased selection:bg-indigo-500 selection:text-white">
+  <body class="text-white antialiased selection:bg-amber-500 selection:text-white">
     <div id="root"></div>
   </body>
 </html>

@@ -1,3 +1,4 @@
+
 export enum PlayerColor {
   RED = 'RED',
   GREEN = 'GREEN',
@@ -5,10 +6,16 @@ export enum PlayerColor {
   BLUE = 'BLUE'
 }
 
-export enum GameMode {
-  LOCAL = 'LOCAL',
-  COMPUTER = 'COMPUTER',
-  ONLINE = 'ONLINE'
+export enum Theme {
+  ROYAL = 'ROYAL',
+  NEON = 'NEON',
+  MIDNIGHT = 'MIDNIGHT'
+}
+
+export enum Difficulty {
+  EASY = 'EASY',
+  MEDIUM = 'MEDIUM',
+  HARD = 'HARD'
 }
 
 export enum PlayerType {
@@ -16,32 +23,27 @@ export enum PlayerType {
   COMPUTER = 'COMPUTER'
 }
 
-export enum TokenState {
-  BASE = 'BASE',
-  BOARD = 'BOARD',
-  HOME = 'HOME'
-}
-
 export interface Token {
-  id: string; // e.g., 'RED_0'
+  id: string;
   player: PlayerColor;
-  position: number; // -1 for Base, 0-56 for path, 57 for Home
-  stepCount: number; // How many steps taken (0 means at start of track)
+  position: number;
+  stepCount: number;
 }
 
 export interface Player {
   id: string;
   name: string;
+  avatar: string;
   color: PlayerColor;
-  type: PlayerType; // Updated from boolean isComputer
+  type: PlayerType;
   tokens: Token[];
   hasFinished: boolean;
   rank?: number; 
 }
 
 export interface Coordinates {
-  x: number; // Grid Column (1-15)
-  y: number; // Grid Row (1-15)
+  x: number;
+  y: number;
 }
 
 export interface GameState {
@@ -54,14 +56,23 @@ export interface GameState {
   winners: PlayerColor[];
   log: string[];
   lastDiceRollTime: number;
+  theme: Theme;
+  difficulty: Difficulty;
+  diamonds: number;
+  coins: number;
+  unlockedThemes: Theme[];
+  selectedDiceSkin: 'classic' | 'gold' | 'neon';
+  unlockedDiceSkins: string[];
 }
 
 export interface GameConfig {
   playerCount: number;
+  difficulty: Difficulty;
   players: {
     color: PlayerColor;
     type: PlayerType;
     name: string;
+    avatar: string;
   }[];
   startingColor: PlayerColor;
 }

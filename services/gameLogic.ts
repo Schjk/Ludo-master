@@ -1,4 +1,6 @@
-import { GameState, Player, PlayerColor, Token, TokenState } from '../types';
+
+// Fix: Removed non-existent TokenState and unused GameState from imports
+import { Player, PlayerColor, Token } from '../types';
 import { SAFE_SPOTS } from '../constants';
 
 export const rollDice = (): number => {
@@ -13,24 +15,20 @@ export const getGlobalPosition = (token: Token): number => {
   const offset = {
     [PlayerColor.RED]: 0,
     [PlayerColor.GREEN]: 13,
-    [PlayerColor.YELLOW]: 26,
-    [PlayerColor.BLUE]: 39
+    [PlayerColor.BLUE]: 26,
+    [PlayerColor.YELLOW]: 39
   }[token.player];
 
   return (offset + token.stepCount) % 52;
 };
 
 export const canMoveToken = (token: Token, diceValue: number): boolean => {
-  // If in base, must roll 6
+  // If token is in base, it can only move out if dice is 6
   if (token.stepCount === -1) {
     return diceValue === 6;
   }
+  
   // If moving would overshoot home (56 is final step count index to reach center)
-  // Actually path length is usually:
-  // 51 steps on main board.
-  // 5 steps on home straight.
-  // 1 step to land on victory center.
-  // Total 57 steps (0 to 56).
   if (token.stepCount + diceValue > 56) {
     return false;
   }
@@ -57,9 +55,6 @@ export const checkForKill = (
 
     for (const t of player.tokens) {
       if (getGlobalPosition(t) === globalPos) {
-        // Kill found!
-        // NOTE: In some rules, if opponent has 2 tokens on same spot, it's a block. 
-        // Simplifying to standard kill for this scope.
         killOccurred = true;
         opponentToken = t;
         opponentPlayerId = player.id;

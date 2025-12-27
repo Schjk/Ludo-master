@@ -1,62 +1,85 @@
-import React, { useEffect, useState } from 'react';
+
+import React, { useEffect, useState, useRef } from 'react';
 
 interface DiceProps {
   value: number | null;
   rolling: boolean;
   onClick: () => void;
   disabled: boolean;
-  color: string; // Tailwind text color class (Unused for dots now, strict black)
+  skin?: 'classic' | 'gold' | 'neon';
 }
 
-const Dice: React.FC<DiceProps> = ({ value, rolling, onClick, disabled }) => {
-  const [displayValue, setDisplayValue] = useState(1);
+const Dice: React.FC<DiceProps> = ({ value, rolling, onClick, disabled, skin = 'classic' }) => {
+  const [rotation, setRotation] = useState({ x: 0, y: 0 });
+  const rollInterval = useRef<number | null>(null);
 
   useEffect(() => {
     if (rolling) {
-      const interval = setInterval(() => {
-        setDisplayValue(Math.floor(Math.random() * 6) + 1);
-      }, 100);
-      return () => clearInterval(interval);
+      rollInterval.current = window.setInterval(() => {
+        setRotation({
+          x: Math.floor(Math.random() * 720),
+          y: Math.floor(Math.random() * 720)
+        });
+      }, 60);
     } else if (value) {
-      setDisplayValue(value);
+      if (rollInterval.current) {
+        clearInterval(rollInterval.current);
+        rollInterval.current = null;
+      }
+      
+      const targetRotations: Record<number, { x: number; y: number }> = {
+        1: { x: 0, y: 0 },
+        2: { x: 0, y: 180 },
+        3: { x: 0, y: -90 },
+        4: { x: 0, y: 90 },
+        5: { x: -90, y: 0 },
+        6: { x: 90, y: 0 },
+      };
+      
+      const target = targetRotations[value];
+      setRotation({ x: 720 + target.x, y: 720 + target.y });
     }
   }, [rolling, value]);
 
-  const dotPosition = (num: number) => {
-    const dots = [];
-    if ([1, 3, 5].includes(num)) dots.push('top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2'); // Center
-    if ([2, 3, 4, 5, 6].includes(num)) dots.push('top-2 left-2'); // Top Left
-    if ([2, 3, 4, 5, 6].includes(num)) dots.push('bottom-2 right-2'); // Bottom Right
-    if ([4, 5, 6].includes(num)) dots.push('top-2 right-2'); // Top Right
-    if ([4, 5, 6].includes(num)) dots.push('bottom-2 left-2'); // Bottom Left
-    if ([6].includes(num)) dots.push('top-1/2 left-2 -translate-y-1/2'); // Middle Left
-    if ([6].includes(num)) dots.push('top-1/2 right-2 -translate-y-1/2'); // Middle Right
-    return dots;
+  const dotColor = skin === 'gold' ? '#2c1e14' : skin === 'neon' ? '#fff' : '#2c1e14';
+  const Dot = () => <div className="dot" style={{ backgroundColor: dotColor }} />;
+
+  const faceStyle = () => {
+    if (skin === 'gold') return 'bg-gold-gradient border-gold-500 shadow-[0_0_10px_rgba(212,175,55,0.4)]';
+    if (skin === 'neon') return 'bg-blue-600 border-blue-300 shadow-[0_0_15px_blue]';
+    return 'bg-radial-gradient(circle, #fffef0 0%, #e6dfc8 100%) border-[#5c4033]';
+  };
+
+  const renderFaceDots = (num: number) => {
+    switch(num) {
+      case 1: return <div className="w-full h-full flex items-center justify-center"><Dot /></div>;
+      case 2: return <div className="w-full h-full flex flex-col justify-between"><div className="flex justify-start"><Dot /></div><div className="flex justify-end"><Dot /></div></div>;
+      case 3: return <div className="w-full h-full flex flex-col justify-between"><div className="flex justify-start"><Dot /></div><div className="flex justify-center"><Dot /></div><div className="flex justify-end"><Dot /></div></div>;
+      case 4: return <div className="w-full h-full flex flex-col justify-between"><div className="flex justify-between"><Dot /><Dot /></div><div className="flex justify-between"><Dot /><Dot /></div></div>;
+      case 5: return <div className="w-full h-full flex flex-col justify-between"><div className="flex justify-between"><Dot /><Dot /></div><div className="flex justify-center"><Dot /></div><div className="flex justify-between"><Dot /><Dot /></div></div>;
+      case 6: return <div className="w-full h-full flex flex-col justify-between"><div className="flex justify-between"><Dot /><Dot /></div><div className="flex justify-between"><Dot /><Dot /></div><div className="flex justify-between"><Dot /><Dot /></div></div>;
+      default: return null;
+    }
   };
 
   return (
-    <div className="relative flex flex-col items-center justify-center p-4">
-      <button
-        onClick={onClick}
-        disabled={disabled}
-        className={`
-          w-20 h-20 rounded-2xl shadow-[0_8px_15px_-3px_rgba(0,0,0,0.3)] 
-          border border-[#e2d5b5] bg-gradient-to-br from-[#fffef0] to-[#e6dfc8]
-          relative transition-all duration-200
-          ${rolling ? 'animate-spin' : ''}
-          ${disabled ? 'opacity-80 cursor-not-allowed' : 'hover:scale-105 active:scale-95 cursor-pointer'}
-        `}
+    <div className="relative flex flex-col items-center justify-center">
+      <div 
+        className={`dice-scene ${disabled ? 'opacity-40 grayscale pointer-events-none' : 'cursor-pointer active:scale-90 transition-transform'}`}
+        onClick={!disabled ? onClick : undefined}
       >
-        {/* Bevel effect */}
-        <div className="absolute inset-1 rounded-xl border border-white/50"></div>
-        
-        {dotPosition(displayValue).map((pos, idx) => (
-          <div key={idx} className={`absolute w-4 h-4 rounded-full bg-black shadow-inner ${pos}`} />
-        ))}
-      </button>
-      <span className="mt-3 text-sm font-bold text-[#e6dfc8] uppercase tracking-widest text-shadow-sm">
-        {rolling ? 'Rolling...' : value ? `Rolled: ${value}` : 'Roll'}
-      </span>
+        <div 
+          className="dice-cube"
+          style={{ transform: `rotateX(${rotation.x}deg) rotateY(${rotation.y}deg)`, transition: rolling ? 'none' : 'transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1.2)' }}
+        >
+          <div className={`dice-face front ${faceStyle()}`}>{renderFaceDots(1)}</div>
+          <div className={`dice-face back ${faceStyle()}`}>{renderFaceDots(2)}</div>
+          <div className={`dice-face right ${faceStyle()}`}>{renderFaceDots(3)}</div>
+          <div className={`dice-face left ${faceStyle()}`}>{renderFaceDots(4)}</div>
+          <div className={`dice-face top ${faceStyle()}`}>{renderFaceDots(5)}</div>
+          <div className={`dice-face bottom ${faceStyle()}`}>{renderFaceDots(6)}</div>
+        </div>
+      </div>
     </div>
   );
 };
