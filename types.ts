@@ -9,7 +9,22 @@ export enum PlayerColor {
 export enum Theme {
   ROYAL = 'ROYAL',
   NEON = 'NEON',
-  MIDNIGHT = 'MIDNIGHT'
+  CLASSIC = 'CLASSIC',
+  MIDNIGHT = 'MIDNIGHT',
+  FOREST = 'FOREST',
+  INFERNO = 'INFERNO',
+  VOID = 'VOID',
+  STEAMPUNK = 'STEAMPUNK',
+  SAKURA = 'SAKURA'
+}
+
+export enum PawnStyle {
+  STANDARD = 'STANDARD',
+  EMOJI = 'EMOJI',
+  PREMIUM = 'PREMIUM',
+  CRYSTAL = 'CRYSTAL',
+  GHOST = 'GHOST',
+  ROBOTIC = 'ROBOTIC'
 }
 
 export enum Difficulty {
@@ -60,9 +75,14 @@ export interface GameState {
   difficulty: Difficulty;
   diamonds: number;
   coins: number;
+  xp: number;
+  level: number;
   unlockedThemes: Theme[];
-  selectedDiceSkin: 'classic' | 'gold' | 'neon';
+  selectedDiceSkin: string;
   unlockedDiceSkins: string[];
+  selectedPawnStyle: PawnStyle;
+  unlockedPawnStyles: PawnStyle[];
+  godMode?: boolean;
 }
 
 export interface GameConfig {

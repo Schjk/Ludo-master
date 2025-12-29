@@ -6,80 +6,123 @@ interface DiceProps {
   rolling: boolean;
   onClick: () => void;
   disabled: boolean;
-  skin?: 'classic' | 'gold' | 'neon';
+  skin?: string;
 }
 
 const Dice: React.FC<DiceProps> = ({ value, rolling, onClick, disabled, skin = 'classic' }) => {
-  const [rotation, setRotation] = useState({ x: 0, y: 0 });
+  const [rotation, setRotation] = useState({ x: 0, y: 0, z: 0 });
+  const [scale, setScale] = useState(1);
   const rollInterval = useRef<number | null>(null);
+
+  // RIGOROUS mapping for 3D Cube faces
+  const faceRotations: Record<number, { x: number; y: number }> = {
+    1: { x: 0, y: 0 },       // Front
+    6: { x: 180, y: 0 },     // Back
+    3: { x: 0, y: -90 },     // Right
+    4: { x: 0, y: 90 },      // Left
+    2: { x: -90, y: 0 },     // Top
+    5: { x: 90, y: 0 },      // Bottom
+  };
 
   useEffect(() => {
     if (rolling) {
+      setScale(1.1);
       rollInterval.current = window.setInterval(() => {
         setRotation({
-          x: Math.floor(Math.random() * 720),
-          y: Math.floor(Math.random() * 720)
+          x: Math.floor(Math.random() * 720) - 360,
+          y: Math.floor(Math.random() * 720) - 360,
+          z: Math.floor(Math.random() * 360)
         });
       }, 60);
-    } else if (value) {
+    } else if (value !== null) {
       if (rollInterval.current) {
         clearInterval(rollInterval.current);
         rollInterval.current = null;
       }
       
-      const targetRotations: Record<number, { x: number; y: number }> = {
-        1: { x: 0, y: 0 },
-        2: { x: 0, y: 180 },
-        3: { x: 0, y: -90 },
-        4: { x: 0, y: 90 },
-        5: { x: -90, y: 0 },
-        6: { x: 90, y: 0 },
-      };
+      const target = faceRotations[value];
+      setScale(1.2);
+      setTimeout(() => setScale(1), 300);
       
-      const target = targetRotations[value];
-      setRotation({ x: 720 + target.x, y: 720 + target.y });
+      setRotation({ 
+        x: 1080 + target.x, 
+        y: 1080 + target.y, 
+        z: 0 
+      });
     }
   }, [rolling, value]);
 
-  const dotColor = skin === 'gold' ? '#2c1e14' : skin === 'neon' ? '#fff' : '#2c1e14';
-  const Dot = () => <div className="dot" style={{ backgroundColor: dotColor }} />;
+  const Dot = () => {
+    let dotStyle: React.CSSProperties = {
+      width: '12px',
+      height: '12px',
+      borderRadius: '50%',
+      backgroundColor: '#000',
+      boxShadow: 'inset 0 2px 3px rgba(0,0,0,0.6)',
+    };
 
-  const faceStyle = () => {
-    if (skin === 'gold') return 'bg-gold-gradient border-gold-500 shadow-[0_0_10px_rgba(212,175,55,0.4)]';
-    if (skin === 'neon') return 'bg-blue-600 border-blue-300 shadow-[0_0_15px_blue]';
-    return 'bg-radial-gradient(circle, #fffef0 0%, #e6dfc8 100%) border-[#5c4033]';
+    if (skin === 'gold') dotStyle.backgroundColor = '#3f2b01';
+    if (skin === 'neon') { dotStyle.backgroundColor = '#22d3ee'; dotStyle.boxShadow = '0 0 8px #22d3ee'; }
+    if (skin === 'ruby') { dotStyle.backgroundColor = '#fff'; dotStyle.boxShadow = '0 0 5px #fff'; }
+
+    return <div style={dotStyle} />;
   };
 
-  const renderFaceDots = (num: number) => {
-    switch(num) {
-      case 1: return <div className="w-full h-full flex items-center justify-center"><Dot /></div>;
-      case 2: return <div className="w-full h-full flex flex-col justify-between"><div className="flex justify-start"><Dot /></div><div className="flex justify-end"><Dot /></div></div>;
-      case 3: return <div className="w-full h-full flex flex-col justify-between"><div className="flex justify-start"><Dot /></div><div className="flex justify-center"><Dot /></div><div className="flex justify-end"><Dot /></div></div>;
-      case 4: return <div className="w-full h-full flex flex-col justify-between"><div className="flex justify-between"><Dot /><Dot /></div><div className="flex justify-between"><Dot /><Dot /></div></div>;
-      case 5: return <div className="w-full h-full flex flex-col justify-between"><div className="flex justify-between"><Dot /><Dot /></div><div className="flex justify-center"><Dot /></div><div className="flex justify-between"><Dot /><Dot /></div></div>;
-      case 6: return <div className="w-full h-full flex flex-col justify-between"><div className="flex justify-between"><Dot /><Dot /></div><div className="flex justify-between"><Dot /><Dot /></div><div className="flex justify-between"><Dot /><Dot /></div></div>;
-      default: return null;
+  const getFaceClass = () => {
+    const base = "dice-face border-[3px] ";
+    switch (skin) {
+      case 'gold': return base + "bg-gradient-to-br from-[#fef3c7] via-[#fbbf24] to-[#b45309] border-[#92400e] shadow-inner";
+      case 'neon': return base + "bg-[#020617] border-[#22d3ee] shadow-[0_0_15px_#22d3ee,inset_0_0_8px_#22d3ee]";
+      case 'ruby': return base + "bg-gradient-to-br from-[#ef4444] to-[#7f1d1d] border-[#ef4444]";
+      default: return base + "bg-gradient-to-br from-white via-slate-50 to-slate-200 border-slate-300 shadow-[inset_0_0_15px_rgba(0,0,0,0.1)]";
     }
+  };
+
+  const renderDots = (num: number) => {
+    const grid = "grid grid-cols-3 grid-rows-3 gap-1 w-full h-full p-2";
+    const pos = {
+      1: [4],
+      2: [0, 8],
+      3: [0, 4, 8],
+      4: [0, 2, 6, 8],
+      5: [0, 2, 4, 6, 8],
+      6: [0, 2, 3, 5, 6, 8]
+    }[num] || [];
+
+    return (
+      <div className={grid}>
+        {Array.from({ length: 9 }).map((_, i) => (
+          <div key={i} className="flex items-center justify-center">
+            {pos.includes(i) && <Dot />}
+          </div>
+        ))}
+      </div>
+    );
   };
 
   return (
     <div className="relative flex flex-col items-center justify-center">
       <div 
-        className={`dice-scene ${disabled ? 'opacity-40 grayscale pointer-events-none' : 'cursor-pointer active:scale-90 transition-transform'}`}
+        className={`dice-scene transition-all duration-300 ${disabled ? 'opacity-30 pointer-events-none grayscale' : 'cursor-pointer hover:scale-110 active:scale-95'}`}
         onClick={!disabled ? onClick : undefined}
+        style={{ transform: `scale(${scale})` }}
       >
         <div 
           className="dice-cube"
-          style={{ transform: `rotateX(${rotation.x}deg) rotateY(${rotation.y}deg)`, transition: rolling ? 'none' : 'transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1.2)' }}
+          style={{ 
+            transform: `rotateX(${rotation.x}deg) rotateY(${rotation.y}deg) rotateZ(${rotation.z}deg)`, 
+            transition: rolling ? 'none' : 'transform 1.4s cubic-bezier(0.15, 0.9, 0.3, 1.25)' 
+          }}
         >
-          <div className={`dice-face front ${faceStyle()}`}>{renderFaceDots(1)}</div>
-          <div className={`dice-face back ${faceStyle()}`}>{renderFaceDots(2)}</div>
-          <div className={`dice-face right ${faceStyle()}`}>{renderFaceDots(3)}</div>
-          <div className={`dice-face left ${faceStyle()}`}>{renderFaceDots(4)}</div>
-          <div className={`dice-face top ${faceStyle()}`}>{renderFaceDots(5)}</div>
-          <div className={`dice-face bottom ${faceStyle()}`}>{renderFaceDots(6)}</div>
+          <div className={getFaceClass()} style={{ transform: 'translateZ(36px)' }}>{renderDots(1)}</div>
+          <div className={getFaceClass()} style={{ transform: 'rotateY(180deg) translateZ(36px)' }}>{renderDots(6)}</div>
+          <div className={getFaceClass()} style={{ transform: 'rotateY(90deg) translateZ(36px)' }}>{renderDots(3)}</div>
+          <div className={getFaceClass()} style={{ transform: 'rotateY(-90deg) translateZ(36px)' }}>{renderDots(4)}</div>
+          <div className={getFaceClass()} style={{ transform: 'rotateX(90deg) translateZ(36px)' }}>{renderDots(2)}</div>
+          <div className={getFaceClass()} style={{ transform: 'rotateX(-90deg) translateZ(36px)' }}>{renderDots(5)}</div>
         </div>
       </div>
+      <div className={`mt-8 w-16 h-2 rounded-[50%] bg-black/50 blur-md transition-all duration-700 ${rolling ? 'scale-x-150 opacity-10' : 'scale-x-100 opacity-60'}`} />
     </div>
   );
 };

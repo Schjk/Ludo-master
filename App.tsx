@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { GameState, Player, PlayerColor, Token, GameConfig, PlayerType, Theme, Difficulty } from './types';
+import { GameState, Player, PlayerColor, Token, GameConfig, PlayerType, Theme, Difficulty, PawnStyle } from './types';
 import { COLOR_MAP } from './constants';
 import * as GameLogic from './services/gameLogic';
 import * as AIService from './services/aiService';
@@ -8,84 +7,155 @@ import LudoBoard from './components/LudoBoard';
 import Dice from './components/Dice';
 import GameAssistant from './components/GameAssistant';
 import { 
-  Trophy, Bot, Settings, Play, Moon, Sun, ShieldCheck, User, Palette, 
-  Crown, Gem, Coins, Globe, Heart, Monitor, Users, Calendar, 
-  Package, ShoppingCart, Home, Bell, ChevronRight, Award, RefreshCcw, Lock, Check, Sparkles
+  Trophy, Bot, Settings, User, Crown, Coins, ShoppingCart, Home, BarChart3, Star, Skull, X, Trash2, Award, RefreshCcw, Palette, Zap, Shield, Target, Menu,
+  Globe, Users, Smartphone, Gift, Disc, Calendar, Backpack, Plus, Diamond
 } from 'lucide-react';
 
 const INITIAL_TOKENS = (color: PlayerColor): Token[] => 
   [0, 1, 2, 3].map(i => ({ id: `${color}_${i}`, player: color, position: -1, stepCount: -1 }));
 
-const AVAILABLE_AVATARS = ["🦁", "🦊", "🐼", "🤖", "👻", "🦄", "🐲", "🐱", "🐶", "🐻", "🐭", "🐹"];
+const AVAILABLE_AVATARS = ["🦁", "🦊", "🐼", "🤖", "👻", "🦄", "🐲", "🐱", "🐶", "🐻", "🐭", "🐹", "🧛", "🧟", "🎭"];
 const ALL_COLORS = [PlayerColor.RED, PlayerColor.GREEN, PlayerColor.BLUE, PlayerColor.YELLOW];
 
+const ROYAL_CHATS = [
+  { text: "Well Played, Sir.", emoji: "🍷" },
+  { text: "Fortune favors me!", emoji: "🎲" },
+  { text: "A splendid move.", emoji: "👏" },
+  { text: "Make haste!", emoji: "⏳" },
+  { text: "Checkmate.", emoji: "⚔️" },
+  { text: "Strategic brilliance.", emoji: "🧠" },
+  { text: "Alas!", emoji: "😅" },
+  { text: "Victory shall be mine.", emoji: "👑" },
+];
+
+const UNDERWORLD_CHATS = [
+  { text: "Chal nikal laude", emoji: "👋" },
+  { text: "Hatt madarchod", emoji: "🤬" },
+  { text: "Bhosadike!", emoji: "💩" },
+  { text: "Chup bhenchod", emoji: "🤫" },
+  { text: "Teri mkc", emoji: "🖕" },
+  { text: "Aukat mein reh", emoji: "👺" },
+  { text: "Haga diya na?", emoji: "🤡" },
+  { text: "Bhag bsdk", emoji: "🏃" },
+];
+
+const getLevelTitle = (level: number) => {
+  if (level >= 50) return "Emperor";
+  if (level >= 30) return "High King";
+  if (level >= 20) return "Grand Duke";
+  if (level >= 10) return "High Lord";
+  if (level >= 5) return "Royal Knight";
+  return "Squire";
+};
+
 const App: React.FC = () => {
-  const [activeScreen, setActiveScreen] = useState<'home' | 'setup' | 'game' | 'store'>('home');
-  const [setupMode, setSetupMode] = useState<'computer' | 'passnplay'>('computer');
-  const [isMoving, setIsMoving] = useState(false);
+  const KEYS = {
+    STATE: 'ludo_royal_state_v9',
+    SCREEN: 'ludo_royal_screen',
+    SECRET: 'ludo_royal_18_mode',
+    USER: 'ludo_royal_user'
+  };
+
+  const [activeScreen, setActiveScreen] = useState<'home' | 'setup' | 'game' | 'store' | 'profile'>(() => {
+    return (localStorage.getItem(KEYS.SCREEN) as any) || 'home';
+  });
+
+  const [secretMode, setSecretMode] = useState(() => localStorage.getItem(KEYS.SECRET) === 'true');
+  const [secretCounter, setSecretCounter] = useState(0);
+  const [settingsVisible, setSettingsVisible] = useState(false);
+  const [activeChat, setActiveChat] = useState<{ msg: string; emoji: string } | null>(null);
+
+  const [userData, setUserData] = useState(() => {
+    const saved = localStorage.getItem(KEYS.USER);
+    return saved ? JSON.parse(saved) : { name: "Lord Player", avatar: "🦁", level: 1, xp: 0 };
+  });
+
+  const [gameState, setGameState] = useState<GameState>(() => {
+    const DEFAULT_GAME_STATE: GameState = {
+      players: [],
+      currentPlayerIndex: 0,
+      diceValue: null,
+      isDiceRolling: false,
+      waitingForMove: false,
+      consecutiveSixes: 0,
+      winners: [],
+      log: [],
+      lastDiceRollTime: 0,
+      theme: Theme.ROYAL,
+      difficulty: Difficulty.MEDIUM,
+      diamonds: 1000,
+      coins: 5000,
+      xp: 0,
+      level: 1,
+      unlockedThemes: [Theme.ROYAL],
+      selectedDiceSkin: 'classic',
+      unlockedDiceSkins: ['classic'],
+      selectedPawnStyle: PawnStyle.STANDARD,
+      unlockedPawnStyles: [PawnStyle.STANDARD],
+      godMode: false
+    };
+    const saved = localStorage.getItem(KEYS.STATE);
+    try {
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return { ...DEFAULT_GAME_STATE, ...parsed, isDiceRolling: false };
+      }
+    } catch (e) {}
+    return DEFAULT_GAME_STATE;
+  });
+
   const [config, setConfig] = useState<GameConfig>({
     playerCount: 4,
     difficulty: Difficulty.MEDIUM,
-    players: [
-      { color: PlayerColor.RED, type: PlayerType.HUMAN, name: 'Player 1', avatar: "🦁" },
-      { color: PlayerColor.GREEN, type: PlayerType.COMPUTER, name: 'Player 2', avatar: "🤖" },
-      { color: PlayerColor.BLUE, type: PlayerType.COMPUTER, name: 'Player 3', avatar: "👻" },
-      { color: PlayerColor.YELLOW, type: PlayerType.COMPUTER, name: 'Player 4', avatar: "🦊" },
-    ],
+    players: ALL_COLORS.map((c, i) => ({
+      color: c,
+      type: PlayerType.HUMAN,
+      name: i === 0 ? userData.name : `Lord ${i + 1}`,
+      avatar: i === 0 ? userData.avatar : AVAILABLE_AVATARS[i % AVAILABLE_AVATARS.length]
+    })),
     startingColor: PlayerColor.RED
   });
 
-  const [gameState, setGameState] = useState<GameState>({
-    players: [],
-    currentPlayerIndex: 0,
-    diceValue: null,
-    isDiceRolling: false,
-    waitingForMove: false,
-    consecutiveSixes: 0,
-    winners: [],
-    log: [],
-    lastDiceRollTime: 0,
-    theme: Theme.ROYAL,
-    difficulty: Difficulty.MEDIUM,
-    diamonds: 0,
-    coins: 500,
-    unlockedThemes: [Theme.ROYAL],
-    selectedDiceSkin: 'classic',
-    unlockedDiceSkins: ['classic']
-  });
-
+  const [setupMode, setSetupMode] = useState<'computer' | 'passnplay'>('computer');
+  const [isMoving, setIsMoving] = useState(false);
   const [lastMovedTokenId, setLastMovedTokenId] = useState<string | undefined>(undefined);
   const [assistantVisible, setAssistantVisible] = useState(false);
-  const lastShakeTime = useRef<number>(0);
 
-  const toggleTheme = () => {
-    setGameState(prev => ({
-      ...prev,
-      theme: prev.theme === Theme.ROYAL ? Theme.NEON : Theme.ROYAL
-    }));
+  useEffect(() => {
+    localStorage.setItem(KEYS.STATE, JSON.stringify(gameState));
+    localStorage.setItem(KEYS.SCREEN, activeScreen);
+    localStorage.setItem(KEYS.SECRET, secretMode.toString());
+    localStorage.setItem(KEYS.USER, JSON.stringify(userData));
+    document.body.className = secretMode ? 'theme-underworld' : `theme-${gameState.theme.toLowerCase()}`;
+  }, [gameState, activeScreen, secretMode, userData]);
+
+  const triggerSecret = () => {
+    const next = secretCounter + 1;
+    if (next >= 5) {
+      document.body.classList.add('glitch-active');
+      setTimeout(() => {
+        setSecretMode(!secretMode);
+        setSecretCounter(0);
+        document.body.classList.remove('glitch-active');
+      }, 600);
+    } else {
+      setSecretCounter(next);
+    }
   };
 
-  const updatePlayerConfig = (index: number, field: keyof typeof config.players[0], value: any) => {
-    const newPlayers = [...config.players];
-    if (field === 'color') {
-      const existingIndex = newPlayers.findIndex((p, i) => i !== index && p.color === value);
-      if (existingIndex !== -1) {
-        const oldColor = newPlayers[index].color;
-        newPlayers[existingIndex].color = oldColor;
-      }
-    }
-    newPlayers[index] = { ...newPlayers[index], [field]: value };
-    setConfig({ ...config, players: newPlayers });
+  const handleQuickChat = (chat: any) => {
+    setActiveChat({ msg: chat.text, emoji: chat.emoji });
+    setTimeout(() => setActiveChat(null), 3000);
   };
 
   const handleDiceRoll = useCallback(() => {
-    if (gameState.isDiceRolling || gameState.waitingForMove || isMoving || gameState.winners.length >= gameState.players.length - 1) return;
-    setGameState(prev => ({ ...prev, isDiceRolling: true }));
+    if (gameState.isDiceRolling || gameState.waitingForMove || isMoving) return;
+    setGameState(prev => ({ ...prev, isDiceRolling: true, diceValue: null }));
     setTimeout(() => {
       const roll = GameLogic.rollDice();
       setGameState(prev => {
-        const currentPlayer = prev.players[prev.currentPlayerIndex];
-        const canMove = GameLogic.hasValidMoves(currentPlayer, roll);
+        const cp = prev.players[prev.currentPlayerIndex];
+        const canMove = GameLogic.hasValidMoves(cp, roll);
         return {
           ...prev,
           diceValue: roll,
@@ -94,54 +164,53 @@ const App: React.FC = () => {
           lastDiceRollTime: Date.now()
         };
       });
-    }, 1200);
+    }, 1000);
   }, [gameState, isMoving]);
+
+  const handleGodRoll = (n: number) => {
+    if (gameState.isDiceRolling || gameState.waitingForMove || isMoving) return;
+    setGameState(prev => {
+      const cp = prev.players[prev.currentPlayerIndex];
+      const canMove = GameLogic.hasValidMoves(cp, n);
+      return {
+        ...prev,
+        diceValue: n,
+        waitingForMove: canMove,
+        lastDiceRollTime: Date.now()
+      };
+    });
+  };
 
   const startGame = () => {
     const activeConfigs = config.players.slice(0, config.playerCount);
-    const newPlayers: Player[] = activeConfigs.map((c) => ({
+    const newPlayers: Player[] = activeConfigs.map((c, i) => ({
       id: c.color,
-      name: c.name,
-      avatar: c.avatar,
+      name: i === 0 ? userData.name : c.name,
+      avatar: i === 0 ? userData.avatar : c.avatar,
       color: c.color,
-      type: c.type,
+      type: setupMode === 'passnplay' ? PlayerType.HUMAN : (i === 0 ? PlayerType.HUMAN : c.type),
       tokens: INITIAL_TOKENS(c.color),
       hasFinished: false,
     }));
-    let startIndex = newPlayers.findIndex(p => p.color === config.startingColor);
-    if (startIndex === -1) startIndex = 0;
     setGameState(prev => ({
       ...prev,
       players: newPlayers,
-      currentPlayerIndex: startIndex,
-      difficulty: config.difficulty,
+      currentPlayerIndex: 0,
+      winners: [],
       diceValue: null,
-      isDiceRolling: false,
       waitingForMove: false,
       consecutiveSixes: 0,
-      winners: [],
-      lastDiceRollTime: 0
+      difficulty: config.difficulty
     }));
     setActiveScreen('game');
   };
 
-  const nextTurn = useCallback(() => {
-    setGameState(prev => {
-      let nextIndex = (prev.currentPlayerIndex + 1) % prev.players.length;
-      let attempts = 0;
-      while (prev.players[nextIndex].hasFinished && attempts < 4) {
-        nextIndex = (nextIndex + 1) % prev.players.length;
-        attempts++;
-      }
-      return { ...prev, currentPlayerIndex: nextIndex, diceValue: null, waitingForMove: false, consecutiveSixes: 0 };
-    });
-  }, []);
-
   const handleMoveToken = useCallback(async (token: Token) => {
     if (!gameState.waitingForMove || !gameState.diceValue || isMoving) return;
-    const currentPlayer = gameState.players[gameState.currentPlayerIndex];
-    if (token.player !== currentPlayer.color) return;
+    const cp = gameState.players[gameState.currentPlayerIndex];
+    if (token.player !== cp.color) return;
     if (!GameLogic.canMoveToken(token, gameState.diceValue)) return;
+    
     setIsMoving(true);
     setLastMovedTokenId(token.id);
     const dice = gameState.diceValue;
@@ -159,18 +228,15 @@ const App: React.FC = () => {
         players[pIndex] = player;
         return { ...prev, players };
       });
-      await new Promise(resolve => setTimeout(resolve, 250));
+      // Increased delay to 300ms to match CSS animation duration
+      await new Promise(r => setTimeout(r, 300));
     }
 
     setGameState(prev => {
       const players = [...prev.players];
       const pIndex = prev.currentPlayerIndex;
       const player = { ...players[pIndex] };
-      const tIndex = player.tokens.findIndex(t => t.id === token.id);
-      const movedToken = player.tokens[tIndex];
-
-      let addedCoins = 0;
-      if (movedToken.stepCount === 56) addedCoins += 100;
+      const movedToken = player.tokens.find(t => t.id === token.id)!;
 
       const { killed, opponentToken, opponentPlayerId } = GameLogic.checkForKill(movedToken, players);
       if (killed && opponentToken && opponentPlayerId) {
@@ -179,7 +245,6 @@ const App: React.FC = () => {
         const oppTokenIndex = opp.tokens.findIndex(t => t.id === opponentToken.id);
         opp.tokens[oppTokenIndex].stepCount = -1;
         players[oppIndex] = opp;
-        addedCoins += 50; 
       }
 
       if (player.tokens.every(t => t.stepCount >= 56)) {
@@ -188,468 +253,440 @@ const App: React.FC = () => {
       }
       players[pIndex] = player;
 
-      let addedDiamonds = 0;
-      if (player.hasFinished && player.rank === 1) {
-        if (prev.difficulty === Difficulty.HARD) {
-          addedDiamonds = 100;
-          addedCoins += 2500;
-        } else if (prev.difficulty === Difficulty.MEDIUM) {
-          addedDiamonds = 25;
-          addedCoins += 1000;
-        } else {
-          addedDiamonds = 10;
-          addedCoins += 500;
-        }
+      let nextIdx = pIndex;
+      let shouldEndTurn = true;
+      if (dice === 6 && !player.hasFinished && prev.consecutiveSixes < 2) shouldEndTurn = false;
+      if (killed) shouldEndTurn = false;
+
+      if (shouldEndTurn) {
+        nextIdx = (pIndex + 1) % players.length;
+        while (players[nextIdx].hasFinished) nextIdx = (nextIdx + 1) % players.length;
       }
 
       return { 
         ...prev, 
         players, 
+        currentPlayerIndex: nextIdx,
         waitingForMove: false, 
+        diceValue: null,
         winners: player.hasFinished ? [...prev.winners, player.color] : prev.winners, 
-        consecutiveSixes: dice === 6 ? prev.consecutiveSixes + 1 : 0,
-        coins: prev.coins + addedCoins,
-        diamonds: prev.diamonds + addedDiamonds
+        consecutiveSixes: (dice === 6 && !shouldEndTurn) ? prev.consecutiveSixes + 1 : 0,
+        xp: prev.xp + (killed ? 100 : 25),
+        coins: prev.coins + (killed ? 200 : 20)
       };
     });
+    setLastMovedTokenId(undefined);
     setIsMoving(false);
   }, [gameState, isMoving]);
 
   useEffect(() => {
-    if (activeScreen === 'game' && !gameState.waitingForMove && gameState.diceValue !== null && !gameState.isDiceRolling && !isMoving) {
-      if (gameState.diceValue === 6 && gameState.consecutiveSixes < 3 && !gameState.players[gameState.currentPlayerIndex].hasFinished) {
-         setGameState(prev => ({ ...prev, diceValue: null, waitingForMove: false }));
-      } else {
-         const timer = setTimeout(nextTurn, 1000); 
-         return () => clearTimeout(timer);
-      }
-    }
-  }, [gameState, nextTurn, isMoving, activeScreen]);
+    if (activeScreen !== 'game' || isMoving || gameState.winners.length >= gameState.players.length - 1) return;
+    const cp = gameState.players[gameState.currentPlayerIndex];
+    if (cp?.type !== PlayerType.COMPUTER) return;
 
-  useEffect(() => {
-    if (activeScreen !== 'game' || gameState.winners.length >= gameState.players.length - 1 || isMoving) return;
-    const currentPlayer = gameState.players[gameState.currentPlayerIndex];
-    if (currentPlayer?.type !== PlayerType.COMPUTER) return;
-    if (!gameState.diceValue && !gameState.isDiceRolling) {
-      const timer = setTimeout(() => handleDiceRoll(), 1500);
-      return () => clearTimeout(timer);
-    } else if (gameState.waitingForMove && gameState.diceValue && !gameState.isDiceRolling) {
-       const timer = setTimeout(() => {
-         const move = AIService.getBestMove(currentPlayer, gameState.diceValue!, gameState.players, gameState.difficulty);
-         if (move) handleMoveToken(move);
-       }, 1500);
-       return () => clearTimeout(timer);
-    }
+    const runAI = async () => {
+      await new Promise(r => setTimeout(r, 1200));
+      if (!gameState.diceValue && !gameState.isDiceRolling) {
+        handleDiceRoll();
+      } else if (gameState.waitingForMove && gameState.diceValue) {
+        const move = AIService.getBestMove(cp, gameState.diceValue!, gameState.players, gameState.difficulty);
+        if (move) handleMoveToken(move);
+      }
+    };
+    runAI();
   }, [gameState, activeScreen, handleDiceRoll, handleMoveToken, isMoving]);
 
-  const backgroundStyle = {
-    backgroundImage: `url("https://www.transparenttextures.com/patterns/wood-pattern.png")`,
-    backgroundColor: gameState.theme === Theme.MIDNIGHT ? '#0a0502' : gameState.theme === Theme.NEON ? '#000814' : '#221108',
-    transition: 'background-color 1s ease'
-  };
-
-  const BetaBadge = ({ className = "" }: { className?: string }) => (
-    <div className={`absolute top-2 right-2 bg-amber-500 text-black text-[8px] font-black px-1.5 py-0.5 rounded shadow-sm flex items-center gap-0.5 z-20 animate-pulse border border-white/40 ${className}`}>
-      <Lock size={8} /> BETA
-    </div>
-  );
-
-  // --- RENDERING SCREENS ---
-
+  // UI Components
   if (activeScreen === 'home') {
-    return (
-      <div className="min-h-screen flex flex-col p-4 relative overflow-hidden font-royal" style={backgroundStyle}>
-        <div className="absolute inset-0 bg-black/40 pointer-events-none"></div>
-
-        <header className="relative z-10 flex justify-between items-center w-full max-w-4xl mx-auto mb-8">
-          <div className="flex items-center gap-3">
-            <div className="w-14 h-14 rounded-full border-4 border-gold bg-[#2c1e14] flex items-center justify-center text-3xl shadow-xl relative">
-              <span className="drop-shadow-md">🦁</span>
-            </div>
-            <button className="p-2 bg-[#2c1e14]/80 rounded-lg border-2 border-gold/50 shadow-lg text-gold-gradient hover:scale-110 transition">
-              <Settings size={24} />
-            </button>
-          </div>
-
-          <div className="flex flex-col items-center gap-1">
-            <Crown className="w-10 h-10 text-[#d4af37] drop-shadow-glow" fill="#d4af37" />
-            <h1 className="text-4xl sm:text-5xl font-black text-gold-gradient tracking-widest text-center filter drop-shadow-[0_4px_4px_rgba(0,0,0,0.8)]">
-              LUDO ROYAL
-            </h1>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-2 bg-[#2c1e14]/90 px-3 py-1 rounded-full border border-gold shadow-lg">
-              <Gem size={16} className="text-blue-400 drop-shadow-sm" fill="currentColor" />
-              <span className="text-xs font-bold text-white tracking-wide">{gameState.diamonds}</span>
-            </div>
-            <div className="flex items-center gap-2 bg-[#2c1e14]/90 px-3 py-1 rounded-full border border-gold shadow-lg">
-              <Coins size={16} className="text-[#d4af37]" fill="currentColor" />
-              <span className="text-xs font-bold text-white tracking-wide">{gameState.coins >= 1000 ? `${(gameState.coins / 1000).toFixed(1)}K` : gameState.coins}</span>
-            </div>
-          </div>
-        </header>
-
-        <main className="relative z-10 flex-1 flex flex-col items-center justify-center gap-8 w-full max-w-4xl mx-auto">
-          <div className="grid grid-cols-2 gap-4 sm:gap-6 w-full max-w-2xl px-2">
-            {[
-              { id: 'online', name: 'PLAY ONLINE', icon: Globe, color: 'bg-red-800', desc: 'Global players', beta: true },
-              { id: 'friends', name: 'WITH FRIENDS', icon: Heart, color: 'bg-green-800', desc: 'Invite friends', beta: true },
-              { id: 'computer', name: 'COMPUTER', icon: Monitor, color: 'bg-blue-800', desc: 'Versus AI', beta: false },
-              { id: 'passnplay', name: 'PASS N PLAY', icon: Users, color: 'bg-amber-700', desc: 'Local fun', beta: false }
-            ].map(item => (
-              <button 
-                key={item.id}
-                disabled={item.beta}
-                onClick={() => {
-                  setSetupMode(item.id as any);
-                  if (item.id === 'computer') {
-                    setConfig({ ...config, players: config.players.map((p, i) => ({ ...p, type: i === 0 ? PlayerType.HUMAN : PlayerType.COMPUTER })) });
-                    setActiveScreen('setup');
-                  } else if (item.id === 'passnplay') {
-                    setConfig({ ...config, players: config.players.map(p => ({ ...p, type: PlayerType.HUMAN })) });
-                    setActiveScreen('setup');
-                  }
-                }}
-                className={`relative group ${item.color} ornate-border rounded-xl aspect-[1.5/1] sm:aspect-[1.8/1] flex flex-col items-center justify-center gap-2 overflow-hidden shadow-2xl transition-all ${!item.beta ? 'hover:scale-[1.03] active:scale-95 shine-effect' : 'opacity-80 cursor-not-allowed'} `}
-              >
-                {item.beta && <BetaBadge />}
-                <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-black/30 pointer-events-none"></div>
-                <item.icon className={`w-10 sm:w-14 h-10 sm:h-14 text-gold-gradient drop-shadow-lg transition-transform ${!item.beta && 'group-hover:rotate-12'}`} />
-                <div className="text-center">
-                  <span className="block text-sm sm:text-base font-bold text-white tracking-widest drop-shadow-md">{item.name}</span>
-                  <span className="hidden sm:block text-[10px] text-white/60 font-serif italic tracking-wider">{item.desc}</span>
-                </div>
-              </button>
-            ))}
-          </div>
-        </main>
-
-        <footer className="relative z-10 w-full max-w-4xl mx-auto flex justify-between items-center py-4 px-2 border-t-2 border-gold/20 mt-4">
-           {[
-             { id: 'event', name: 'EVENT', icon: Calendar, beta: true },
-             { id: 'friends', name: 'FRIENDS', icon: Users, beta: true },
-             { id: 'home', name: 'HOME', icon: Home, active: true, beta: false },
-             { id: 'inv', name: 'INV.', icon: Package, beta: true },
-             { id: 'store', name: 'STORE', icon: ShoppingCart, beta: false }
-           ].map(item => (
-             <button 
-               key={item.name} 
-               disabled={item.beta}
-               onClick={() => item.id === 'store' ? setActiveScreen('store') : null}
-               className={`relative flex flex-col items-center gap-1 transition-all ${item.active ? 'scale-125 -translate-y-2' : item.beta ? 'opacity-40 cursor-not-allowed' : 'opacity-60 hover:opacity-100 hover:scale-110'}`}
-             >
-               {item.beta && <BetaBadge />}
-               <div className={`p-2 rounded-lg ${item.active ? 'bg-gold-gradient border-2 border-[#2c1e14] shadow-lg' : 'bg-transparent'}`}>
-                 <item.icon size={20} className={item.active ? 'text-[#2c1e14]' : 'text-gold-gradient'} />
-               </div>
-               <span className={`text-[10px] font-bold tracking-widest ${item.active ? 'text-white' : 'text-gold-gradient'}`}>{item.name}</span>
-             </button>
-           ))}
-        </footer>
-      </div>
-    );
-  }
-
-  if (activeScreen === 'store') {
-    const handlePurchase = (type: 'theme' | 'dice', value: any, cost: number, currency: 'coins' | 'diamonds') => {
-      if (gameState[currency] < cost) return;
-      setGameState(prev => {
-        const newState = { ...prev, [currency]: prev[currency] - cost };
-        if (type === 'theme') {
-          newState.unlockedThemes = [...prev.unlockedThemes, value];
-          newState.theme = value;
-        } else if (type === 'dice') {
-          newState.unlockedDiceSkins = [...prev.unlockedDiceSkins, value];
-          newState.selectedDiceSkin = value;
-        }
-        return newState;
-      });
-    };
+    const canResume = gameState.players.length > 0 && gameState.winners.length < gameState.players.length - 1;
 
     return (
-      <div className="min-h-screen flex flex-col p-4 relative overflow-hidden font-royal" style={backgroundStyle}>
-        <div className="absolute inset-0 bg-black/60"></div>
-        <header className="relative z-10 flex justify-between items-center mb-8">
-           <button onClick={() => setActiveScreen('home')} className="bg-gold-gradient p-3 rounded-full border-2 border-white shadow-xl hover:scale-110 transition text-[#2c1e14]">
-             <Home size={24} />
-           </button>
-           <h1 className="text-3xl font-black text-gold-gradient tracking-[0.2em]">ROYAL STORE</h1>
-           <div className="flex flex-col gap-1">
-             <div className="flex items-center gap-2 bg-black/40 px-3 py-1 rounded-full border border-gold">
-               <Gem size={14} className="text-blue-400" fill="currentColor" />
-               <span className="text-xs font-bold text-white">{gameState.diamonds}</span>
-             </div>
-             <div className="flex items-center gap-2 bg-black/40 px-3 py-1 rounded-full border border-gold">
-               <Coins size={14} className="text-[#d4af37]" fill="currentColor" />
-               <span className="text-xs font-bold text-white">{gameState.coins}</span>
-             </div>
-           </div>
-        </header>
-
-        <main className="relative z-10 flex-1 overflow-y-auto custom-scrollbar pr-2 pb-20">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* Themes Section */}
-            <section>
-              <h2 className="text-gold-gradient font-black text-xl mb-4 border-b border-gold/30 pb-2 flex items-center gap-2"><Palette size={20} /> THEMES</h2>
-              <div className="grid grid-cols-2 gap-4">
-                {[
-                  { id: Theme.ROYAL, name: 'Royal Classic', cost: 0, currency: 'coins' as const, color: '#221108' },
-                  { id: Theme.MIDNIGHT, name: 'Obsidian Night', cost: 500, currency: 'coins' as const, color: '#0a0502' },
-                  { id: Theme.NEON, name: 'Cyber Neon', cost: 50, currency: 'diamonds' as const, color: '#000814' }
-                ].map(item => {
-                  const unlocked = gameState.unlockedThemes.includes(item.id);
-                  const selected = gameState.theme === item.id;
-                  return (
-                    <div key={item.id} className={`ornate-border p-4 rounded-xl flex flex-col gap-3 transition-all ${selected ? 'ring-4 ring-gold ring-offset-4 ring-offset-[#2c1e14]' : ''}`} style={{ backgroundColor: item.color }}>
-                      <span className="text-white font-bold text-xs tracking-wider">{item.name}</span>
-                      {unlocked ? (
-                        <button onClick={() => setGameState(p => ({...p, theme: item.id}))} className={`w-full py-2 rounded font-black text-[10px] tracking-widest ${selected ? 'bg-gold-gradient text-black' : 'bg-white/10 text-white'}`}>
-                          {selected ? <Check className="mx-auto w-4 h-4" /> : 'EQUIP'}
-                        </button>
-                      ) : (
-                        <button onClick={() => handlePurchase('theme', item.id, item.cost, item.currency)} className="w-full py-2 bg-gold-gradient rounded font-black text-[10px] text-black flex items-center justify-center gap-1 hover:scale-105 transition active:scale-95">
-                          {item.currency === 'coins' ? <Coins size={10} fill="currentColor" /> : <Gem size={10} fill="currentColor" />} {item.cost} BUY
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
-
-            {/* Dice Skins Section */}
-            <section>
-              <h2 className="text-gold-gradient font-black text-xl mb-4 border-b border-gold/30 pb-2 flex items-center gap-2"><RefreshCcw size={20} /> DICE SKINS</h2>
-              <div className="grid grid-cols-2 gap-4">
-                {[
-                  { id: 'classic', name: 'Standard Ivory', cost: 0, currency: 'coins' as const, bg: 'bg-white' },
-                  { id: 'gold', name: 'Imperial Gold', cost: 1500, currency: 'coins' as const, bg: 'bg-gold-gradient' },
-                  { id: 'neon', name: 'Hologram Blue', cost: 100, currency: 'diamonds' as const, bg: 'bg-blue-600 shadow-[0_0_15px_blue]' }
-                ].map(item => {
-                  const unlocked = gameState.unlockedDiceSkins.includes(item.id);
-                  const selected = gameState.selectedDiceSkin === item.id;
-                  return (
-                    <div key={item.id} className={`ornate-border p-4 rounded-xl bg-[#2c1e14] flex flex-col gap-3 ${selected ? 'ring-2 ring-gold' : ''}`}>
-                      <div className={`w-12 h-12 mx-auto rounded-lg border-2 border-white/20 ${item.bg} flex items-center justify-center`}>
-                        <div className="w-2 h-2 rounded-full bg-black/40"></div>
-                      </div>
-                      <span className="text-white font-bold text-[10px] text-center">{item.name}</span>
-                      {unlocked ? (
-                        <button onClick={() => setGameState(p => ({...p, selectedDiceSkin: item.id as any}))} className={`w-full py-2 rounded font-black text-[10px] tracking-widest ${selected ? 'bg-gold-gradient text-black' : 'bg-white/10 text-white'}`}>
-                          {selected ? <Check className="mx-auto w-4 h-4" /> : 'EQUIP'}
-                        </button>
-                      ) : (
-                        <button onClick={() => handlePurchase('dice', item.id, item.cost, item.currency)} className="w-full py-2 bg-gold-gradient rounded font-black text-[10px] text-black flex items-center justify-center gap-1">
-                          {item.currency === 'coins' ? <Coins size={10} fill="currentColor" /> : <Gem size={10} fill="currentColor" />} {item.cost}
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
-          </div>
-
-          <div className="mt-12 opacity-50 relative pointer-events-none">
-             <BetaBadge className="!static !inline-flex !mb-2" />
-             <h2 className="text-gold-gradient font-black text-xl mb-4 border-b border-gold/30 pb-2 flex items-center gap-2"><Users size={20} /> PAWN AVATARS</h2>
-             <div className="flex gap-4 overflow-x-hidden">
-                <div className="w-20 h-20 bg-white/5 rounded-full border-2 border-dashed border-gold/40"></div>
-                <div className="w-20 h-20 bg-white/5 rounded-full border-2 border-dashed border-gold/40"></div>
-                <div className="w-20 h-20 bg-white/5 rounded-full border-2 border-dashed border-gold/40"></div>
-             </div>
-          </div>
-        </main>
-      </div>
-    );
-  }
-
-  if (activeScreen === 'setup') {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden font-royal" style={backgroundStyle}>
-        <div className="absolute inset-0 bg-black/60"></div>
-        <div className="max-w-2xl w-full bg-[#2c1e14]/95 backdrop-blur-xl rounded-2xl shadow-2xl p-6 sm:p-10 border-4 border-gold relative z-10 flex flex-col gap-6 ornate-border">
-          <button onClick={() => setActiveScreen('home')} className="absolute -top-4 -left-4 bg-gold-gradient w-12 h-12 rounded-full border-2 border-[#2c1e14] flex items-center justify-center text-[#2c1e14] shadow-xl hover:scale-110 transition">
-            <Home size={20} />
-          </button>
-
-          <h1 className="text-4xl font-extrabold text-gold-gradient text-center uppercase tracking-[0.3em] drop-shadow-md">
-            {setupMode === 'passnplay' ? 'LOCAL MATCH' : 'BATTLE CPU'}
-          </h1>
-
-          <div className="space-y-6">
-             {setupMode === 'computer' && (
-               <div className="space-y-3">
-                 <label className="text-gold-gradient text-xs font-bold uppercase tracking-wider flex items-center gap-2">
-                   <ShieldCheck size={14} /> Difficulty Level
-                 </label>
-                 <div className="grid grid-cols-3 gap-3">
-                   {[Difficulty.EASY, Difficulty.MEDIUM, Difficulty.HARD].map(d => (
-                     <button 
-                       key={d}
-                       onClick={() => setConfig({...config, difficulty: d})}
-                       className={`py-3 rounded-lg font-bold border-2 transition-all text-xs tracking-[0.2em] ${config.difficulty === d ? 'bg-gold-gradient text-[#3d2b1f] border-white shadow-[0_0_15px_rgba(212,175,55,0.5)]' : 'bg-[#1a0f0a] text-gold-gradient border-gold/50 opacity-60'}`}
-                     >
-                       {d}
-                     </button>
-                   ))}
+      <div className="h-screen flex flex-col bg-royal-wood relative overflow-hidden">
+         {/* Top Header */}
+         <div className="pt-4 px-4 pb-2 flex justify-between items-start z-10">
+            {/* Player Info */}
+            <div className="flex items-center gap-2">
+              <div onClick={triggerSecret} className="relative cursor-pointer">
+                 <div className="w-14 h-14 rounded-full border-2 border-gold bg-black/50 flex items-center justify-center text-3xl shadow-lg relative z-10 overflow-hidden">
+                    {userData.avatar}
                  </div>
+                 {/* Notification Dot */}
+                 <div className="absolute top-0 right-0 w-4 h-4 bg-red-600 rounded-full border border-white z-20 flex items-center justify-center text-[8px] font-bold">1</div>
+                 <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-gold text-black text-[8px] font-black px-2 rounded-full border border-black/50">LV {userData.level}</div>
+              </div>
+            </div>
+
+            {/* Title */}
+            <div className="absolute left-1/2 -translate-x-1/2 top-4 text-center">
+               <Crown className="w-8 h-8 text-gold mx-auto drop-shadow-lg mb-[-5px]" fill="currentColor"/>
+               <h1 className={`text-2xl font-black uppercase tracking-wider ${secretMode ? 'text-red-600 font-[MedievalSharp]' : 'text-gold-emboss font-[Cinzel]'}`}>
+                  {secretMode ? "HELL LUDO" : "LUDO ROYAL"}
+               </h1>
+            </div>
+
+            {/* Currency & Settings */}
+            <div className="flex flex-col items-end gap-2">
+               <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1 bg-black/60 px-2 py-1 rounded-full border border-gold/30">
+                     <Diamond size={12} className="text-cyan-400" fill="currentColor"/>
+                     <span className="text-[10px] font-bold text-white">{gameState.diamonds}</span>
+                     <div className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center text-black text-[10px] ml-1"><Plus size={10} strokeWidth={4}/></div>
+                  </div>
+                  <div className="flex items-center gap-1 bg-black/60 px-2 py-1 rounded-full border border-gold/30">
+                     <Coins size={12} className="text-yellow-500" fill="currentColor"/>
+                     <span className="text-[10px] font-bold text-white">{gameState.coins}</span>
+                     <div className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center text-black text-[10px] ml-1"><Plus size={10} strokeWidth={4}/></div>
+                  </div>
                </div>
-             )}
+               <button onClick={() => setSettingsVisible(true)} className="p-2 bg-black/40 rounded-full border border-gold/20 text-gold hover:bg-black/60 active:rotate-90 transition-all"><Settings size={18}/></button>
+            </div>
+         </div>
 
-             <div className="space-y-3">
-               <label className="text-gold-gradient text-xs font-bold uppercase tracking-wider flex items-center gap-2">
-                 <User size={14} /> Player Selection
-               </label>
-               <div className="flex justify-center space-x-3 mb-4">
-                 {[2, 3, 4].map(count => (
-                   <button key={count} onClick={() => setConfig({...config, playerCount: count})} className={`px-8 py-3 rounded-lg font-bold border-2 transition-all text-sm tracking-widest ${config.playerCount === count ? 'bg-gold-gradient text-[#3d2b1f] border-white' : 'bg-transparent text-gold-gradient border-gold/30'}`}>{count} Players</button>
-                 ))}
-               </div>
+         {/* Main Content Area */}
+         <div className="flex-1 flex flex-col justify-center px-6 gap-6 z-10 overflow-y-auto">
+            
+            {/* Main Menu Grid */}
+            <div className="grid grid-cols-2 gap-4 w-full max-w-md mx-auto">
+               <button onClick={() => alert("Multiplayer Coming Soon!")} className="btn-ornate aspect-[4/3] rounded-2xl bg-gradient-to-br from-red-900 to-red-950 flex flex-col items-center justify-center gap-2 group active:scale-95 transition-transform">
+                  <div className="w-12 h-12 bg-black/30 rounded-full flex items-center justify-center border border-white/10 group-hover:scale-110 transition-transform">
+                     <Globe className="text-red-200" size={24} />
+                  </div>
+                  <span className="text-gold-emboss font-black text-xs tracking-widest uppercase font-[Cinzel]">Play Online</span>
+               </button>
 
-               <div className="space-y-4 max-h-[40vh] overflow-y-auto pr-2 custom-scrollbar">
-                 {Array.from({ length: config.playerCount }).map((_, i) => (
-                   <div key={i} className="flex flex-col gap-3 bg-black/40 p-5 rounded-xl border border-gold/40 shadow-inner">
-                      <div className="flex items-center gap-4">
-                        <select 
-                          value={config.players[i].avatar}
-                          onChange={(e) => updatePlayerConfig(i, 'avatar', e.target.value)}
-                          className="bg-[#2c1e14] text-2xl p-2 rounded-lg border-2 border-gold outline-none cursor-pointer shadow-lg"
-                        >
-                          {AVAILABLE_AVATARS.map(emoji => <option key={emoji} value={emoji}>{emoji}</option>)}
-                        </select>
-                        
-                        <input 
-                          type="text" 
-                          placeholder={`Player ${i+1}`}
-                          value={config.players[i].name} 
-                          onChange={(e) => updatePlayerConfig(i, 'name', e.target.value)} 
-                          className="bg-transparent text-white border-b-2 border-gold/30 focus:border-gold outline-none px-2 py-2 flex-1 font-bold tracking-widest" 
-                        />
+               <button onClick={() => alert("Invite Friends Coming Soon!")} className="btn-ornate aspect-[4/3] rounded-2xl bg-gradient-to-br from-emerald-900 to-emerald-950 flex flex-col items-center justify-center gap-2 group active:scale-95 transition-transform">
+                  <div className="w-12 h-12 bg-black/30 rounded-full flex items-center justify-center border border-white/10 group-hover:scale-110 transition-transform">
+                     <Users className="text-emerald-200" size={24} />
+                  </div>
+                  <span className="text-gold-emboss font-black text-xs tracking-widest uppercase font-[Cinzel]">Friends</span>
+               </button>
 
-                        {setupMode === 'computer' ? (
-                          <select value={config.players[i].type} onChange={(e) => updatePlayerConfig(i, 'type', e.target.value as PlayerType)} className="bg-[#2c1e14] text-gold-gradient border-2 border-gold/50 rounded-lg px-3 py-2 text-[10px] font-bold tracking-widest outline-none cursor-pointer uppercase">
-                            <option value={PlayerType.HUMAN}>Knight</option>
-                            <option value={PlayerType.COMPUTER}>Shadow</option>
-                          </select>
-                        ) : (
-                          <div className="text-gold-gradient text-[10px] font-bold border border-gold/20 px-3 py-2 rounded uppercase tracking-widest">Knight</div>
-                        )}
-                      </div>
+               <button onClick={() => { setSetupMode('computer'); setActiveScreen('setup'); }} className="btn-ornate aspect-[4/3] rounded-2xl bg-gradient-to-br from-blue-900 to-blue-950 flex flex-col items-center justify-center gap-2 group active:scale-95 transition-transform relative">
+                  {canResume && <div className="absolute top-2 right-2 px-2 py-0.5 bg-green-600 text-white text-[8px] font-bold rounded-full animate-pulse border border-green-400">RESUME</div>}
+                  <div className="w-12 h-12 bg-black/30 rounded-full flex items-center justify-center border border-white/10 group-hover:scale-110 transition-transform">
+                     <Smartphone className="text-blue-200" size={24} />
+                  </div>
+                  <span className="text-gold-emboss font-black text-xs tracking-widest uppercase font-[Cinzel]">Computer</span>
+               </button>
 
-                      <div className="flex items-center gap-4 mt-1">
-                        <label className="text-[10px] text-gold-gradient uppercase font-black flex items-center gap-1 tracking-widest opacity-80">
-                          <Palette size={10} /> HOUSE COLOR:
-                        </label>
-                        <div className="flex gap-4">
-                          {ALL_COLORS.map(color => (
-                            <button
-                              key={color}
-                              onClick={() => updatePlayerConfig(i, 'color', color)}
-                              className={`w-8 h-8 rounded-full transition-all duration-300 ${COLOR_MAP[color].bg} border-4 ${config.players[i].color === color ? 'border-white scale-125 shadow-[0_0_15px_rgba(255,255,255,0.6)]' : 'border-[#2c1e14] opacity-50'}`}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                   </div>
-                 ))}
-               </div>
+               <button onClick={() => { setSetupMode('passnplay'); setActiveScreen('setup'); }} className="btn-ornate aspect-[4/3] rounded-2xl bg-gradient-to-br from-amber-700 to-amber-900 flex flex-col items-center justify-center gap-2 group active:scale-95 transition-transform">
+                  <div className="w-12 h-12 bg-black/30 rounded-full flex items-center justify-center border border-white/10 group-hover:scale-110 transition-transform">
+                     <Users className="text-amber-200" size={24} />
+                  </div>
+                  <span className="text-gold-emboss font-black text-xs tracking-widest uppercase font-[Cinzel]">Pass N Play</span>
+               </button>
+            </div>
+
+            {/* Secondary Buttons */}
+            <div className="flex justify-center items-center gap-4 w-full max-w-md mx-auto">
+               <button className="flex flex-col items-center gap-1 active:scale-90 transition-transform">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-b from-purple-900 to-purple-950 border border-gold/50 flex items-center justify-center shadow-lg relative">
+                     <Trophy className="text-gold w-6 h-6" />
+                     <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border border-white" />
+                  </div>
+                  <span className="text-[9px] font-bold text-gold uppercase tracking-wider">Tournament</span>
+               </button>
+
+               <button className="flex flex-col items-center gap-1 active:scale-90 transition-transform -mt-6">
+                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-b from-yellow-600 to-yellow-800 border-2 border-gold flex items-center justify-center shadow-[0_0_20px_rgba(255,215,0,0.3)] animate-pulse">
+                     <Gift className="text-white w-8 h-8 drop-shadow-md" />
+                  </div>
+                  <span className="text-[10px] font-black text-white uppercase tracking-wider bg-red-600 px-2 py-0.5 rounded-full border border-gold">CLAIM</span>
+               </button>
+
+               <button className="flex flex-col items-center gap-1 active:scale-90 transition-transform">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-b from-pink-900 to-pink-950 border border-gold/50 flex items-center justify-center shadow-lg">
+                     <Disc className="text-pink-300 w-6 h-6 animate-spin-slow" />
+                  </div>
+                  <span className="text-[9px] font-bold text-gold uppercase tracking-wider">Spin</span>
+               </button>
+            </div>
+         </div>
+
+         {/* Bottom Navigation */}
+         <div className="h-20 bg-[#1a120b] border-t-2 border-[#3d2817] flex justify-around items-end pb-2 px-2 shadow-[0_-5px_20px_rgba(0,0,0,0.8)] z-20 relative">
+             <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-gold/50 to-transparent" />
+             
+             <button className="flex flex-col items-center gap-1 p-2 text-white/40 hover:text-white transition-colors">
+                <Calendar size={20} />
+                <span className="text-[8px] font-bold uppercase">Event</span>
+             </button>
+             <button className="flex flex-col items-center gap-1 p-2 text-white/40 hover:text-white transition-colors">
+                <Users size={20} />
+                <span className="text-[8px] font-bold uppercase">Friends</span>
+             </button>
+             
+             {/* Center Home Button */}
+             <div className="relative -top-6">
+                <div className="w-16 h-16 bg-gradient-to-b from-gold to-amber-700 rounded-full border-4 border-[#1a120b] flex items-center justify-center shadow-[0_0_20px_rgba(212,175,55,0.4)]">
+                   <Home size={28} className="text-black drop-shadow-sm" fill="currentColor" />
+                </div>
+                <div className="text-center mt-1">
+                   <span className="text-[9px] font-black text-gold uppercase tracking-widest">Home</span>
+                </div>
              </div>
 
-             <button onClick={startGame} className="w-full bg-gold-gradient hover:scale-[1.02] active:scale-95 text-[#2c1e14] font-black py-5 rounded-xl mt-4 shadow-[0_0_30px_rgba(212,175,55,0.4)] border-4 border-white flex items-center justify-center space-x-3 transition-all text-xl tracking-[0.4em] shine-effect">
-               <Play className="w-6 h-6 fill-current" />
-               <span>CONQUER</span>
+             <button onClick={() => setActiveScreen('profile')} className="flex flex-col items-center gap-1 p-2 text-white/40 hover:text-white transition-colors">
+                <Backpack size={20} />
+                <span className="text-[8px] font-bold uppercase">Inventory</span>
              </button>
-          </div>
-        </div>
+             <button onClick={() => setActiveScreen('store')} className="flex flex-col items-center gap-1 p-2 text-white/40 hover:text-white transition-colors">
+                <ShoppingCart size={20} />
+                <span className="text-[8px] font-bold uppercase">Store</span>
+             </button>
+         </div>
       </div>
     );
   }
-
-  const currentPlayer = gameState.players[gameState.currentPlayerIndex];
 
   return (
-    <div className="h-screen w-full grid grid-rows-[auto_1fr_auto] overflow-hidden font-royal" style={backgroundStyle}>
-      <header className="z-30 p-2 sm:p-4 flex justify-center">
-        <div className={`w-full max-w-4xl flex items-center justify-between p-3 rounded-xl border-2 border-gold/40 shadow-2xl ${gameState.theme === Theme.MIDNIGHT ? 'bg-black/80' : 'bg-[#2c1e14]/90'}`}>
-           <div className="flex items-center gap-2">
-             <button onClick={() => setActiveScreen('home')} className="p-2 text-gold-gradient hover:scale-110 transition">
-               <Home size={20} />
-             </button>
-             <button onClick={toggleTheme} className="p-2 text-gold-gradient hover:text-white transition">
-               {gameState.theme === Theme.NEON ? <Sun size={20} /> : <Moon size={20} />}
-             </button>
-             <div className="flex items-center gap-3 ml-2 border-l border-gold/20 pl-4">
-                <div className="flex items-center gap-1 text-gold-gradient text-[10px] font-bold">
-                  <Gem size={10} fill="currentColor" className="text-blue-400" /> {gameState.diamonds}
-                </div>
-                <div className="flex items-center gap-1 text-gold-gradient text-[10px] font-bold">
-                  <Coins size={10} fill="currentColor" /> {gameState.coins}
-                </div>
-             </div>
-           </div>
-           
-           <div className="flex-1 flex justify-center space-x-2 sm:space-x-4">
-             {gameState.players.map((p, i) => (
-               <div key={p.id} className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg border-2 transition-all duration-300 ${gameState.currentPlayerIndex === i ? 'bg-gold-gradient border-white scale-105 shadow-[0_0_15px_rgba(212,175,55,0.6)]' : 'bg-transparent border-transparent opacity-40'}`}>
-                  <span className="text-sm drop-shadow-sm">{p.avatar}</span>
-                  <div className={`w-2 h-2 rounded-full ${COLOR_MAP[p.color].bg} shadow-sm border border-white/40`}></div>
-                  <span className={`text-[10px] sm:text-xs font-black tracking-widest ${gameState.currentPlayerIndex === i ? 'text-[#2c1e14]' : 'text-gold-gradient'}`}>{p.name.split(' ')[0]}</span>
-               </div>
-             ))}
-           </div>
-
-           <button onClick={() => setActiveScreen('setup')} className="p-2 text-gold-gradient hover:scale-110 transition">
-             <Settings className="w-5 h-5" />
-           </button>
+    <div className="h-screen w-full flex flex-col bg-app-main overflow-hidden">
+      {/* Header */}
+      <header className="px-5 py-4 flex justify-between items-center bg-black/40 backdrop-blur-md border-b border-white/5 z-[100]">
+        <button onClick={() => setActiveScreen('home')} className="p-2 bg-white/10 rounded-xl text-gold border border-white/5 active:scale-90 transition-all"><Home size={20}/></button>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 bg-black/60 px-4 py-2 rounded-full border border-gold/20 shadow-inner">
+            <Coins size={14} className="text-gold" fill="currentColor" />
+            <span className="text-xs font-black text-gold">{gameState.coins.toLocaleString()}</span>
+          </div>
+          <button onClick={() => setSettingsVisible(true)} className="p-2 text-gold/80 hover:text-gold active:rotate-90 transition-all"><Settings size={22}/></button>
         </div>
       </header>
 
-      <main className="relative flex items-center justify-center w-full px-2 sm:px-4 overflow-visible">
-        <div className="w-full max-w-[min(90vw,600px,65vh)] flex flex-col items-center">
-          <div className="w-full flex justify-between h-20 items-center px-4">
-            <div className="w-24 flex justify-center">{currentPlayer?.color === PlayerColor.RED && <Dice value={gameState.diceValue} rolling={gameState.isDiceRolling} onClick={handleDiceRoll} disabled={gameState.isDiceRolling || gameState.waitingForMove || isMoving || currentPlayer.type === PlayerType.COMPUTER} skin={gameState.selectedDiceSkin} />}</div>
-            <div className="w-24 flex justify-center">{currentPlayer?.color === PlayerColor.GREEN && <Dice value={gameState.diceValue} rolling={gameState.isDiceRolling} onClick={handleDiceRoll} disabled={gameState.isDiceRolling || gameState.waitingForMove || isMoving || currentPlayer.type === PlayerType.COMPUTER} skin={gameState.selectedDiceSkin} />}</div>
+      {/* Main Game Area */}
+      <main className="flex-1 relative flex flex-col items-center justify-center p-2">
+        <div className="relative w-full max-w-[min(95vw,600px,70vh)] aspect-square mb-4">
+          <LudoBoard 
+            players={gameState.players} 
+            currentPlayerId={gameState.players[gameState.currentPlayerIndex]?.id || ''} 
+            isWaitingForMove={gameState.waitingForMove} 
+            isMoving={isMoving} 
+            diceValue={gameState.diceValue} 
+            onTokenClick={handleMoveToken} 
+            lastMovedTokenId={lastMovedTokenId}
+            theme={secretMode ? Theme.INFERNO : gameState.theme} 
+            pawnStyle={gameState.selectedPawnStyle} 
+          />
+
+          {/* Social Chat Bubble */}
+          {activeChat && (
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[200] chat-bubble bg-white rounded-2xl px-6 py-4 shadow-2xl border-4 border-gold flex flex-col items-center min-w-[160px]">
+              <span className="text-4xl mb-2">{activeChat.emoji}</span>
+              <span className={`text-xs font-black text-black uppercase text-center leading-tight ${secretMode ? 'text-red-700' : ''}`}>{activeChat.msg}</span>
+              <div className="absolute -bottom-3 w-4 h-4 bg-white border-b-4 border-r-4 border-gold rotate-45" />
+            </div>
+          )}
+        </div>
+
+        {/* Controls */}
+        <div className="w-full max-w-[min(95vw,600px)] flex flex-col gap-4 px-4">
+          <div className="flex items-center justify-between gap-4">
+             {/* Dice Container */}
+             <div className={`relative p-5 rounded-[2rem] border-2 transition-all duration-300 ${gameState.players[gameState.currentPlayerIndex]?.type === PlayerType.HUMAN ? 'border-gold bg-gold/10 scale-105 shadow-[0_0_20px_rgba(212,175,55,0.2)]' : 'border-white/5 opacity-40 grayscale'}`}>
+                <Dice value={gameState.diceValue} rolling={gameState.isDiceRolling} onClick={handleDiceRoll} disabled={gameState.isDiceRolling || isMoving || gameState.players[gameState.currentPlayerIndex]?.type === PlayerType.COMPUTER} skin={gameState.selectedDiceSkin} />
+             </div>
+             
+             {/* Chat Grid */}
+             <div className="flex-1 grid grid-cols-4 gap-2 bg-black/40 p-3 rounded-2xl border border-white/5">
+                {(secretMode ? UNDERWORLD_CHATS : ROYAL_CHATS).map((c, i) => (
+                  <button key={i} onClick={() => handleQuickChat(c)} className="aspect-square flex items-center justify-center bg-white/5 rounded-xl hover:bg-white/10 active:scale-90 transition-all text-xl shadow-sm border border-white/5">{c.emoji}</button>
+                ))}
+             </div>
           </div>
-          <div className="w-full aspect-square relative z-10">
-            <LudoBoard players={gameState.players} currentPlayerId={currentPlayer?.id || ''} isWaitingForMove={gameState.waitingForMove} isMoving={isMoving} diceValue={gameState.diceValue} onTokenClick={handleMoveToken} lastMovedTokenId={lastMovedTokenId} theme={gameState.theme} />
-          </div>
-          <div className="w-full flex justify-between h-20 items-center px-4">
-            <div className="w-24 flex justify-center">{currentPlayer?.color === PlayerColor.YELLOW && <Dice value={gameState.diceValue} rolling={gameState.isDiceRolling} onClick={handleDiceRoll} disabled={gameState.isDiceRolling || gameState.waitingForMove || isMoving || currentPlayer.type === PlayerType.COMPUTER} skin={gameState.selectedDiceSkin} />}</div>
-            <div className="w-24 flex justify-center">{currentPlayer?.color === PlayerColor.BLUE && <Dice value={gameState.diceValue} rolling={gameState.isDiceRolling} onClick={handleDiceRoll} disabled={gameState.isDiceRolling || gameState.waitingForMove || isMoving || currentPlayer.type === PlayerType.COMPUTER} skin={gameState.selectedDiceSkin} />}</div>
+
+          {/* Assistant & God Mode */}
+          <div className="flex justify-center items-center gap-4">
+            <button onClick={() => setAssistantVisible(true)} className="flex items-center gap-2 bg-white/5 border border-gold/20 px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-[0.2em] shadow-lg hover:bg-white/10 active:scale-95 transition-all text-gold">
+              <Bot size={16}/> Oracle
+            </button>
+            {gameState.godMode && (
+              <div className="flex gap-1 p-2 bg-black/60 rounded-full border border-red-500/30">
+                 {[1,2,3,4,5,6].map(n => <button key={n} onClick={() => handleGodRoll(n)} className="w-8 h-8 rounded-full bg-white text-black font-black text-xs active:scale-75 transition-all">{n}</button>)}
+              </div>
+            )}
           </div>
         </div>
       </main>
 
-      <footer className="z-40 p-4 flex flex-col items-center">
-        <button onClick={() => setAssistantVisible(true)} className="flex items-center space-x-3 bg-[#2c1e14] border-2 border-gold px-8 py-3 rounded-full transition-all active:scale-95 shadow-2xl hover:scale-105 shine-effect group">
-            <Bot size={22} className="text-gold-gradient group-hover:rotate-12 transition-transform" />
-            <span className="font-black text-xs tracking-[0.2em] text-white">CONSULT ORACLE</span>
-        </button>
-      </footer>
+      <GameAssistant gameState={gameState} visible={assistantVisible} onClose={() => setAssistantVisible(false)} />
 
-      {gameState.winners.length >= gameState.players.length - 1 && (
-        <div className="absolute inset-0 bg-black/90 flex items-center justify-center z-50 p-4 backdrop-blur-md">
-           <div className="p-10 rounded-3xl text-center max-w-sm w-full border-4 border-gold shadow-[0_0_50px_rgba(212,175,55,0.5)] bounce-in bg-[#1a0f0a] ornate-border">
-              <Trophy className="w-24 h-24 mx-auto mb-6 text-gold-gradient drop-shadow-glow" />
-              <h2 className="text-5xl font-black mb-4 tracking-tighter uppercase italic text-gold-gradient">VICTORY!</h2>
-              <p className="mb-10 text-xl font-serif italic text-white/80">
-                The Realm Salutes: <br/>
-                <span className={`text-3xl font-black block mt-4 tracking-widest ${COLOR_MAP[gameState.winners[0]].text} drop-shadow-[0_0_10px_rgba(255,255,255,0.4)]`}>
-                  {gameState.players.find(p => p.color === gameState.winners[0])?.name}
-                </span>
-              </p>
-              <button 
-                onClick={() => setActiveScreen('home')}
-                className="w-full bg-gold-gradient text-[#2c1e14] py-5 rounded-xl font-black text-xl tracking-[0.3em] transition-all active:scale-95 shadow-xl border-4 border-white shine-effect"
-              >
-                RETURN HOME
-              </button>
+      {/* Setup Modal */}
+      {activeScreen === 'setup' && (
+        <div className="fixed inset-0 z-[1100] bg-black/95 flex items-center justify-center p-6 backdrop-blur-md animate-fade-in">
+           <div className="w-full max-w-sm bg-[#1a1512] border border-gold/30 rounded-[2.5rem] p-8 relative shadow-2xl">
+              <button onClick={() => setActiveScreen('home')} className="absolute top-6 right-6 text-white/50 hover:text-white"><X size={24}/></button>
+              <h2 className="text-3xl font-black text-gold-gradient mb-8 uppercase tracking-widest text-center font-[Cinzel]">War Council</h2>
+              
+              <div className="space-y-8">
+                 <div className="space-y-3">
+                   <label className="text-[10px] font-bold uppercase text-gold/50 tracking-[0.3em] block text-center">Difficulty</label>
+                   <div className="flex justify-center gap-2">
+                     {[Difficulty.EASY, Difficulty.MEDIUM, Difficulty.HARD].map(d => (
+                       <button key={d} onClick={() => setConfig({...config, difficulty: d})} className={`px-4 py-3 rounded-xl border text-[10px] font-black uppercase transition-all flex-1 ${config.difficulty === d ? 'bg-gold text-black border-gold' : 'border-white/10 text-white/40 hover:border-white/20'}`}>{d}</button>
+                     ))}
+                   </div>
+                 </div>
+
+                 <div className="space-y-3">
+                   <label className="text-[10px] font-bold uppercase text-gold/50 tracking-[0.3em] block text-center">Opponents</label>
+                   <div className="flex justify-center gap-4">
+                     {[2,3,4].map(n => <button key={n} onClick={() => setConfig({...config, playerCount: n})} className={`w-14 h-14 rounded-2xl border-2 flex items-center justify-center font-black text-lg transition-all ${config.playerCount === n ? 'bg-gold text-black border-gold scale-110' : 'border-white/10 text-white/40 hover:border-white/20'}`}>{n}</button>)}
+                   </div>
+                 </div>
+
+                 <button onClick={startGame} className="w-full bg-gold-gradient text-black py-5 rounded-2xl font-black text-xl tracking-[0.3em] uppercase shadow-lg active:scale-95 transition-all mt-4">DEPLOY</button>
+              </div>
            </div>
         </div>
       )}
-      <GameAssistant gameState={gameState} visible={assistantVisible} onClose={() => setAssistantVisible(false)} />
+
+      {/* Profile/Store Modal */}
+      {(activeScreen === 'store' || activeScreen === 'profile') && (
+        <div className="fixed inset-0 z-[1200] bg-[#0a0808] flex flex-col p-6 pt-20 animate-fade-in overflow-y-auto custom-scrollbar">
+           <button onClick={() => setActiveScreen('home')} className="fixed top-6 right-6 p-3 bg-white/10 text-white rounded-full backdrop-blur-md z-[1300] hover:bg-white/20"><X size={24}/></button>
+           
+           {activeScreen === 'store' ? (
+              <div className="max-w-2xl mx-auto w-full pb-10">
+                <div className="mb-10 text-center">
+                  <h2 className="text-3xl font-black text-gold-gradient uppercase tracking-widest font-[Cinzel] mb-2">Royal Armory</h2>
+                  <p className="text-[10px] text-white/40 uppercase tracking-[0.4em]">Customize your Empire</p>
+                </div>
+
+                <div className="space-y-12">
+                   <div>
+                     <h3 className="text-sm font-black text-gold uppercase tracking-[0.3em] mb-6 flex items-center gap-2"><Palette size={18}/> Domains</h3>
+                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                       {Object.values(Theme).filter(v => typeof v === 'string').map(t => (
+                          <div key={t} className="bg-white/5 p-6 rounded-2xl border border-white/5 flex flex-col items-center gap-3 hover:bg-white/10 transition-colors">
+                             <div className="w-12 h-12 rounded-full bg-black/40 flex items-center justify-center text-2xl border border-white/10">🏰</div>
+                             <span className="text-[10px] font-black uppercase tracking-widest text-white/70">{t.toString()}</span>
+                             <button className="w-full py-2 bg-gold-gradient text-black rounded-lg text-[9px] font-black uppercase">Select</button>
+                          </div>
+                       ))}
+                     </div>
+                   </div>
+
+                   <div>
+                     <h3 className="text-sm font-black text-gold uppercase tracking-[0.3em] mb-6 flex items-center gap-2"><Zap size={18}/> Tokens</h3>
+                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                       {Object.values(PawnStyle).filter(v => typeof v === 'string').map(p => (
+                          <div key={p} className="bg-white/5 p-6 rounded-2xl border border-white/5 flex flex-col items-center gap-3 hover:bg-white/10 transition-colors">
+                             <div className="w-12 h-12 rounded-full bg-black/40 flex items-center justify-center text-2xl border border-white/10">♟️</div>
+                             <span className="text-[10px] font-black uppercase tracking-widest text-white/70">{p.toString()}</span>
+                             <button className="w-full py-2 bg-white/10 text-white rounded-lg text-[9px] font-black uppercase border border-white/10">Select</button>
+                          </div>
+                       ))}
+                     </div>
+                   </div>
+                </div>
+              </div>
+           ) : (
+             <div className="flex flex-col items-center max-w-md mx-auto w-full py-8">
+                <div className="relative mb-6">
+                  <div className="w-40 h-40 rounded-full border-4 border-gold bg-black/50 flex items-center justify-center text-7xl shadow-[0_0_40px_rgba(212,175,55,0.15)] overflow-hidden">
+                    {userData.avatar}
+                  </div>
+                  <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-gold-gradient text-black font-black px-6 py-1.5 rounded-full text-xs shadow-lg whitespace-nowrap border-2 border-black">
+                    LVL {userData.level}
+                  </div>
+                </div>
+
+                <div className="text-center mb-10">
+                  <h2 className="text-4xl font-black text-white uppercase font-[Cinzel] mb-2">{userData.name}</h2>
+                  <span className="text-xs text-gold tracking-[0.4em] uppercase font-serif">{getLevelTitle(userData.level)}</span>
+                </div>
+
+                <div className="w-full bg-white/5 p-6 rounded-3xl border border-white/5 mb-6">
+                  <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-gold/80 mb-3">
+                    <span>Progression</span>
+                    <span>{userData.xp} / {userData.level * 1000} XP</span>
+                  </div>
+                  <div className="w-full h-3 bg-black/40 rounded-full overflow-hidden">
+                    <div className="h-full bg-gold-gradient" style={{ width: `${(userData.xp / (userData.level * 1000)) * 100}%` }} />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4 w-full">
+                   <div className="bg-white/5 p-4 rounded-2xl border border-white/5 text-center">
+                      <BarChart3 className="mx-auto mb-2 text-blue-400" size={20} />
+                      <span className="block text-2xl font-black text-white">42</span>
+                      <span className="text-[9px] text-white/30 uppercase font-black tracking-widest">Wars</span>
+                   </div>
+                   <div className="bg-white/5 p-4 rounded-2xl border border-white/5 text-center">
+                      <Trophy className="mx-auto mb-2 text-gold" size={20} />
+                      <span className="block text-2xl font-black text-white">12</span>
+                      <span className="text-[9px] text-white/30 uppercase font-black tracking-widest">Wins</span>
+                   </div>
+                   <div className="bg-white/5 p-4 rounded-2xl border border-white/5 text-center">
+                      <Award className="mx-auto mb-2 text-red-500" size={20} />
+                      <span className="block text-2xl font-black text-white">284</span>
+                      <span className="text-[9px] text-white/30 uppercase font-black tracking-widest">Kills</span>
+                   </div>
+                </div>
+                
+                <div className="w-full mt-10">
+                   <h3 className="text-center text-[10px] text-white/20 uppercase tracking-[0.5em] mb-4">Change Avatar</h3>
+                   <div className="flex flex-wrap justify-center gap-3">
+                     {AVAILABLE_AVATARS.slice(0, 8).map(a => (
+                       <button key={a} onClick={() => setUserData({...userData, avatar: a})} className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center text-xl hover:bg-white/20 transition-all border border-white/5">{a}</button>
+                     ))}
+                   </div>
+                </div>
+             </div>
+           )}
+        </div>
+      )}
+
+      {/* Settings Modal */}
+      {settingsVisible && (
+        <div className="fixed inset-0 z-[1500] flex items-center justify-center p-6 bg-black/90 backdrop-blur-md animate-fade-in">
+          <div className="w-full max-w-xs bg-[#151010] border border-gold/30 rounded-3xl p-8 relative shadow-2xl">
+            <button onClick={() => setSettingsVisible(false)} className="absolute top-6 right-6 text-white/40 hover:text-white"><X size={24}/></button>
+            <h2 className="text-2xl font-black text-gold tracking-widest mb-8 uppercase font-[Cinzel] flex items-center gap-3"><Settings size={24} /> Settings</h2>
+            
+            <div className="space-y-6">
+              <div className="flex justify-between items-center p-4 bg-white/5 rounded-xl border border-white/5">
+                <div>
+                  <span className="text-xs font-bold uppercase tracking-widest text-white block">God Mode</span>
+                  <span className="text-[9px] text-white/40 uppercase">Dev Dice Control</span>
+                </div>
+                <button 
+                  onClick={() => setGameState(prev => ({...prev, godMode: !prev.godMode}))} 
+                  className={`w-12 h-6 rounded-full relative transition-all ${gameState.godMode ? 'bg-green-600' : 'bg-white/10'}`}
+                >
+                  <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm ${gameState.godMode ? 'left-7' : 'left-1'}`} />
+                </button>
+              </div>
+              
+              <button 
+                onClick={() => { localStorage.clear(); window.location.reload(); }} 
+                className="w-full bg-red-900/20 text-red-500 border border-red-500/20 py-4 rounded-xl font-bold text-xs flex items-center justify-center gap-3 hover:bg-red-900/40 transition-all uppercase tracking-widest"
+              >
+                <Trash2 size={16} /> Reset Data
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Victory Screen */}
+      {gameState.players.length > 0 && gameState.winners.length > 0 && gameState.winners.length >= gameState.players.length - 1 && (
+        <div className="fixed inset-0 z-[3000] bg-black/98 flex items-center justify-center p-6 backdrop-blur-xl animate-fade-in">
+           <div className="w-full max-w-sm bg-black border-2 border-gold rounded-[3rem] p-10 flex flex-col items-center gap-8 text-center animate-bounce-in shadow-[0_0_100px_rgba(212,175,55,0.2)]">
+              <Trophy size={100} className="text-gold drop-shadow-[0_0_40px_rgba(255,215,0,0.6)] animate-pulse" fill="currentColor" />
+              <div>
+                <h2 className="text-5xl font-black text-gold-gradient tracking-tighter uppercase font-[Cinzel] mb-2">Victory</h2>
+                <p className="text-[10px] text-white/40 font-serif uppercase tracking-[0.6em]">The Kingdom is Yours</p>
+              </div>
+              <div className="py-6 w-full border-y border-white/10">
+                 <span className={`text-3xl font-black block tracking-widest uppercase ${COLOR_MAP[gameState.winners[0]].text}`}>
+                   {gameState.players.find(p => p.color === gameState.winners[0])?.name}
+                 </span>
+              </div>
+              <button onClick={() => { setActiveScreen('home'); setGameState(prev => ({...prev, players: [], winners: []})); }} className="w-full bg-gold-gradient text-black py-5 rounded-2xl font-black tracking-[0.3em] shadow-xl uppercase hover:scale-105 transition-all text-xs">Claim Throne</button>
+           </div>
+        </div>
+      )}
     </div>
   );
 };

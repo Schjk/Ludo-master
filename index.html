@@ -6,126 +6,171 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
     <title>Ludo Royal Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=Orbitron:wght@400;700;900&family=MedievalSharp&display=swap" rel="stylesheet">
     <style>
-      ::-webkit-scrollbar { width: 6px; }
-      ::-webkit-scrollbar-track { background: transparent; }
-      ::-webkit-scrollbar-thumb { background: #d4af37; border-radius: 3px; }
-      
+      :root {
+        /* Royal Theme - Deep, Clean, Expensive */
+        --bg-color: #0f0a0a;
+        --bg-radial: radial-gradient(circle at center, #2c1e14 0%, #0f0a0a 100%);
+        --board-bg: #e8d0aa;
+        --board-border: #3d2817;
+        --text-primary: #ffffff;
+        --accent-gold: #d4af37;
+        --panel-bg: rgba(20, 15, 12, 0.95);
+        --font-main: 'Playfair Display', serif;
+        --font-heading: 'Cinzel', serif;
+      }
+
+      .theme-underworld {
+        /* Underworld Theme - 18+ Mode */
+        --bg-color: #050000;
+        --bg-radial: radial-gradient(circle at center, #200000 0%, #000000 100%);
+        --board-bg: #1a0505;
+        --board-border: #ff0000;
+        --text-primary: #ff4d4d;
+        --accent-gold: #ff0000;
+        --panel-bg: rgba(20, 0, 0, 0.98);
+        --font-main: 'MedievalSharp', cursive;
+        --font-heading: 'MedievalSharp', cursive;
+      }
+
       body { 
         overscroll-behavior-y: contain; 
-        background-color: #0c0604; 
-        font-family: 'Playfair Display', serif;
-      }
-
-      .font-royal { font-family: 'Cinzel', serif; }
-
-      /* Royal Golden Gradients */
-      .bg-gold-gradient {
-        background: linear-gradient(135deg, #bf953f 0%, #fcf6ba 25%, #b38728 50%, #fbf5b7 75%, #aa771c 100%);
-      }
-      .text-gold-gradient {
-        background: linear-gradient(to bottom, #fcf6ba 0%, #bf953f 50%, #aa771c 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-      }
-      .border-gold {
-        border-color: #d4af37;
-      }
-
-      /* Ornamental Filigree Border Effect */
-      .ornate-border {
-        position: relative;
-        border: 4px solid #d4af37;
-        box-shadow: 0 0 15px rgba(212, 175, 55, 0.4), inset 0 0 15px rgba(212, 175, 55, 0.4);
-      }
-      .ornate-border::before, .ornate-border::after {
-        content: '';
-        position: absolute;
-        width: 30px;
-        height: 30px;
-        border: 4px solid #fcf6ba;
-        z-index: 5;
-      }
-      .ornate-border::before { top: -8px; left: -8px; border-right: none; border-bottom: none; border-radius: 8px 0 0 0; }
-      .ornate-border::after { bottom: -8px; right: -8px; border-left: none; border-top: none; border-radius: 0 0 8px 0; }
-
-      /* 3D Dice Styles */
-      .dice-scene { width: 64px; height: 64px; perspective: 400px; }
-      .dice-cube {
-        width: 100%; height: 100%; position: relative;
-        transform-style: preserve-3d;
-        transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-      }
-      .dice-face {
-        position: absolute; width: 64px; height: 64px;
-        background: radial-gradient(circle, #fffef0 0%, #e6dfc8 100%);
-        border: 2px solid #5c4033; border-radius: 12px;
-        display: flex; flex-wrap: wrap; padding: 10px; justify-content: space-between;
-        box-shadow: inset 0 0 10px rgba(0,0,0,0.1);
-      }
-      .dot { width: 12px; height: 12px; background: #2c1e14; border-radius: 50%; box-shadow: inset 0 2px 2px rgba(255,255,255,0.4); }
-      
-      .front  { transform: rotateY(  0deg) translateZ(32px); }
-      .back   { transform: rotateY(180deg) translateZ(32px); }
-      .right  { transform: rotateY( 90deg) translateZ(32px); }
-      .left   { transform: rotateY(-90deg) translateZ(32px); }
-      .top    { transform: rotateX( 90deg) translateZ(32px); }
-      .bottom { transform: rotateX(-90deg) translateZ(32px); }
-
-      /* Pawn Hop Animation */
-      @keyframes pawn-hop {
-        0%, 100% { transform: translateY(0) scale(1); }
-        50% { transform: translateY(-24px) scale(1.1); }
-      }
-      .animate-pawn-hop { animation: pawn-hop 0.25s ease-in-out infinite; }
-      
-      @keyframes shadow-shrink {
-        0%, 100% { transform: scale(1); opacity: 0.3; }
-        50% { transform: scale(0.6); opacity: 0.1; }
-      }
-      .animate-shadow-shrink { animation: shadow-shrink 0.25s ease-in-out infinite; }
-
-      .pawn-transition { transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); }
-      
-      .bounce-in { animation: bounceIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55); }
-      @keyframes bounceIn {
-        from { opacity: 0; transform: scale(0.3); }
-        to { opacity: 1; transform: scale(1); }
-      }
-
-      /* Glow Effects */
-      .drop-shadow-glow {
-        filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.6));
-      }
-
-      /* Custom animations for buttons */
-      @keyframes shine {
-        0% { left: -100%; }
-        20% { left: 100%; }
-        100% { left: 100%; }
-      }
-      .shine-effect {
-        position: relative;
+        background-color: var(--bg-color); 
+        background-image: var(--bg-radial);
+        color: var(--text-primary);
+        font-family: var(--font-main);
+        transition: background 1s ease, color 0.5s ease;
         overflow: hidden;
       }
-      .shine-effect::after {
+
+      .bg-app-main { background: transparent; position: relative; }
+      
+      /* New Royal Wood Texture */
+      .bg-royal-wood {
+        background: 
+          radial-gradient(circle at 50% 50%, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.8) 100%),
+          repeating-linear-gradient(45deg, #2b1d14 0px, #23170f 2px, #3a261a 10px, #2b1d14 12px);
+        box-shadow: inset 0 0 100px #000;
+      }
+
+      /* Ornate Gold Buttons */
+      .btn-ornate {
+        position: relative;
+        border: 2px solid #b8860b;
+        box-shadow: 
+          inset 0 0 10px rgba(0,0,0,0.8),
+          0 0 0 2px #3e2723,
+          0 0 0 4px #d4af37,
+          0 10px 20px rgba(0,0,0,0.6);
+      }
+      .btn-ornate::after {
         content: '';
         position: absolute;
-        top: -50%;
-        left: -100%;
-        width: 50%;
-        height: 200%;
-        background: rgba(255, 255, 255, 0.3);
-        transform: rotate(30deg);
-        animation: shine 4s infinite;
+        inset: 4px;
+        border: 1px solid rgba(255,215,0,0.3);
+        pointer-events: none;
       }
+      
+      .text-gold-emboss {
+        background: linear-gradient(180deg, #fffcdb 0%, #d4af37 40%, #8a6e23 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        filter: drop-shadow(0 2px 0px rgba(0,0,0,0.5));
+      }
+
+      /* Premium Gold Gradient */
+      .bg-gold-gradient { 
+        background: linear-gradient(135deg, #c69c38 0%, #f7ef8a 25%, #d4af37 50%, #eddf91 75%, #b58d28 100%); 
+        box-shadow: 0 4px 15px rgba(212, 175, 55, 0.3);
+      }
+      
+      .text-gold-gradient { 
+        background: linear-gradient(to bottom, #f7ef8a 0%, #d4af37 60%, #aa771c 100%); 
+        -webkit-background-clip: text; 
+        -webkit-text-fill-color: transparent; 
+        text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+      }
+
+      .dice-scene { width: 80px; height: 80px; perspective: 800px; }
+      .dice-cube { width: 100%; height: 100%; position: relative; transform-style: preserve-3d; }
+      .dice-face { position: absolute; width: 80px; height: 80px; border-radius: 16px; display: flex; padding: 12px; backface-visibility: visible; box-sizing: border-box; }
+
+      @keyframes chat-pop {
+        0% { transform: scale(0) translateY(20px); opacity: 0; }
+        15% { transform: scale(1.1) translateY(-10px); opacity: 1; }
+        85% { transform: scale(1) translateY(-10px); opacity: 1; }
+        100% { transform: scale(0.8) translateY(-40px); opacity: 0; }
+      }
+      .chat-bubble { animation: chat-pop 2.5s forwards cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+
+      /* Subtle Glitch for Transition only */
+      @keyframes glitch-anim {
+        0% { transform: translate(0); }
+        20% { transform: translate(-2px, 2px); }
+        40% { transform: translate(-2px, -2px); }
+        60% { transform: translate(2px, 2px); }
+        80% { transform: translate(2px, -2px); }
+        100% { transform: translate(0); }
+      }
+      .glitch-active { animation: glitch-anim 0.2s 3; filter: hue-rotate(90deg) contrast(1.5); }
+
+      /* Pawn Animations */
+      .pawn-transition { 
+        transition: left 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), top 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); 
+      }
+      
+      /* Movement Hop - Realistic physics */
+      @keyframes move-hop-standard {
+        0% { transform: translateY(0) scale(1); filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3)); }
+        40% { transform: translateY(-30%) scale(1.15); filter: drop-shadow(0 15px 10px rgba(0,0,0,0.2)); }
+        70% { transform: translateY(0) scale(0.95); } /* landing impact squash */
+        100% { transform: translateY(0) scale(1); }
+      }
+
+      /* Slide - For robotic/slide styles */
+      @keyframes move-slide {
+        0% { transform: scale(1); }
+        50% { transform: scale(0.9); filter: blur(0.5px); }
+        100% { transform: scale(1); }
+      }
+
+      /* Ghost Float */
+      @keyframes move-ghost {
+        0% { transform: translateY(0) scale(1); opacity: 0.7; }
+        50% { transform: translateY(-15%) scale(1.1); opacity: 1; filter: drop-shadow(0 0 10px rgba(255,255,255,0.5)); }
+        100% { transform: translateY(0) scale(1); opacity: 0.7; }
+      }
+
+      /* Selection Animations */
+      @keyframes select-pulse-royal {
+        0% { transform: scale(1); filter: drop-shadow(0 0 0 rgba(212,175,55,0)); }
+        50% { transform: scale(1.08); filter: drop-shadow(0 0 8px rgba(212,175,55,0.6)); }
+        100% { transform: scale(1); filter: drop-shadow(0 0 0 rgba(212,175,55,0)); }
+      }
+
+      @keyframes select-bounce-playful {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-12%); }
+      }
+
+      /* Classes applied by React */
+      .anim-move-hop { animation: move-hop-standard 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+      .anim-move-slide { animation: move-slide 0.3s linear forwards; }
+      .anim-move-ghost { animation: move-ghost 0.3s ease-in-out forwards; }
+      
+      .anim-select-royal { animation: select-pulse-royal 2s infinite ease-in-out; }
+      .anim-select-bounce { animation: select-bounce-playful 1s infinite ease-in-out; }
+
+      .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+      .custom-scrollbar::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
+      .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--accent-gold); border-radius: 10px; }
     </style>
   <script type="importmap">
 {
   "imports": {
-    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
     "@google/genai": "https://esm.sh/@google/genai@^1.34.0",
+    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
     "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
     "react/": "https://esm.sh/react@^19.2.3/",
     "react": "https://esm.sh/react@^19.2.3"
@@ -133,7 +178,7 @@
 }
 </script>
 </head>
-  <body class="text-white antialiased selection:bg-amber-500 selection:text-white">
+  <body class="antialiased selection:bg-amber-500 selection:text-white">
     <div id="root"></div>
   </body>
 </html>

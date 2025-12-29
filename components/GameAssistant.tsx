@@ -27,7 +27,7 @@ const GameAssistant: React.FC<GameAssistantProps> = ({ gameState, visible, onClo
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       
       const simplifiedState = {
-        currentPlayer: gameState.players[gameState.currentPlayerIndex].color,
+        currentPlayer: gameState.players[gameState.currentPlayerIndex]?.color,
         dice: gameState.diceValue,
         positions: gameState.players.map(p => ({
             color: p.color,
@@ -50,7 +50,11 @@ const GameAssistant: React.FC<GameAssistantProps> = ({ gameState, visible, onClo
         contents: prompt,
       });
 
-      setResponse(result.text || "Hmm, I'm lost for words.");
+      if (result && typeof result.text === 'string') {
+        setResponse(result.text || "Hmm, I'm lost for words.");
+      } else {
+        setResponse("Oracle is silent today.");
+      }
     } catch (error) {
       console.error(error);
       setResponse("My brain is fuzzy. Try again later.");
@@ -62,7 +66,7 @@ const GameAssistant: React.FC<GameAssistantProps> = ({ gameState, visible, onClo
   if (!visible) return null;
 
   return (
-    <div className="fixed bottom-20 right-4 w-72 bg-white rounded-xl shadow-2xl border border-indigo-100 z-50 overflow-hidden animate-fade-in-up">
+    <div className="fixed bottom-24 right-4 w-72 bg-white rounded-xl shadow-2xl border border-indigo-100 z-[600] overflow-hidden animate-fade-in-up">
       <div className="bg-indigo-600 p-3 flex justify-between items-center">
         <div className="flex items-center space-x-2">
           <Bot className="text-white w-5 h-5" />
